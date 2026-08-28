@@ -12,7 +12,7 @@
     "start:dev": "PORTLESS_PORT=1355 PORTLESS_HTTPS=0 portless run nest start --watch",
     "start:dev:http": "PORTLESS_PORT=1355 PORTLESS_HTTPS=0 portless run nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "bun x prisma db push && bun run dist/main.js",
+    "start:prod": "bun x prisma db push && bun run dist/src/main.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",

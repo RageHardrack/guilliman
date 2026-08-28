@@ -31,11 +31,17 @@ export class Loan {
   ) {}
 
   get paidAmount(): number {
-    return Math.max(0, Math.round((this.amount - this.remainingAmount) * 100) / 100);
+    return Math.max(
+      0,
+      Math.round((this.amount - this.remainingAmount) * 100) / 100,
+    );
   }
 
   get progressPercentage(): number {
     if (this.amount <= 0) return 100;
-    return Math.min(100, Math.round((this.paidAmount / this.amount) * 1000) / 10);
+    return Math.min(
+      100,
+      Math.round((this.paidAmount / this.amount) * 1000) / 10,
+    );
   }
 }

@@ -75,8 +75,13 @@ export class User {
     this._updatedAt = new Date();
   }
 
-  updateTaxProfile(taxProfileEnabled?: boolean, taxCountry?: string, taxRuc?: string | null): void {
-    if (taxProfileEnabled !== undefined) this._taxProfileEnabled = taxProfileEnabled;
+  updateTaxProfile(
+    taxProfileEnabled?: boolean,
+    taxCountry?: string,
+    taxRuc?: string | null,
+  ): void {
+    if (taxProfileEnabled !== undefined)
+      this._taxProfileEnabled = taxProfileEnabled;
     if (taxCountry !== undefined) this._taxCountry = taxCountry;
     if (taxRuc !== undefined) this._taxRuc = taxRuc;
     this._updatedAt = new Date();

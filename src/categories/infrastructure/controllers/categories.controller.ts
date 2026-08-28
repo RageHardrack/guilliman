@@ -62,7 +62,10 @@ export class CategoriesController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar una categoría de transacción por ID' })
-  @ApiResponse({ status: 200, description: 'Categoría actualizada exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Categoría actualizada exitosamente',
+  })
   @ApiResponse({ status: 404, description: 'Categoría no encontrada' })
   async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
     const category = await this.categoryRepository.update(id, dto);

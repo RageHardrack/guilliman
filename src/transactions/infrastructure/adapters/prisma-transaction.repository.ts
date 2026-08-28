@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Transaction as PrismaTransaction } from '@prisma/client';
 
-import { Transaction, TransactionType } from '../../domain/transaction.entity';
+import { Transaction } from '../../domain/transaction.entity';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import {
   CreateTransactionData,
@@ -95,7 +95,10 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
           where: { id: existing.accountId },
           data: { balance: { increment: existing.amount } },
         });
-      } else if (existing.type === 'TRANSFER' && existing.destinationAccountId) {
+      } else if (
+        existing.type === 'TRANSFER' &&
+        existing.destinationAccountId
+      ) {
         await tx.account.update({
           where: { id: existing.accountId },
           data: { balance: { increment: existing.amount } },
@@ -121,11 +124,21 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
           ...(data.type !== undefined && { type: data.type as any }),
           ...(data.date !== undefined && { date: data.date }),
           ...(data.note !== undefined && { note: data.note }),
-          ...(data.taxCategory !== undefined && { taxCategory: data.taxCategory as any }),
-          ...(data.taxDocumentType !== undefined && { taxDocumentType: data.taxDocumentType as any }),
-          ...(data.taxDocumentNumber !== undefined && { taxDocumentNumber: data.taxDocumentNumber }),
-          ...(data.taxWithholdingAmount !== undefined && { taxWithholdingAmount: data.taxWithholdingAmount }),
-          ...(data.taxDeductionType !== undefined && { taxDeductionType: data.taxDeductionType as any }),
+          ...(data.taxCategory !== undefined && {
+            taxCategory: data.taxCategory as any,
+          }),
+          ...(data.taxDocumentType !== undefined && {
+            taxDocumentType: data.taxDocumentType as any,
+          }),
+          ...(data.taxDocumentNumber !== undefined && {
+            taxDocumentNumber: data.taxDocumentNumber,
+          }),
+          ...(data.taxWithholdingAmount !== undefined && {
+            taxWithholdingAmount: data.taxWithholdingAmount,
+          }),
+          ...(data.taxDeductionType !== undefined && {
+            taxDeductionType: data.taxDeductionType as any,
+          }),
         },
       });
 
@@ -205,14 +218,14 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
       destinationAccountId: raw.destinationAccountId,
       categoryId: raw.categoryId,
       amount: raw.amount,
-      type: raw.type as TransactionType,
+      type: raw.type,
       date: raw.date,
       note: raw.note,
-      taxCategory: raw.taxCategory as any,
-      taxDocumentType: raw.taxDocumentType as any,
+      taxCategory: raw.taxCategory,
+      taxDocumentType: raw.taxDocumentType,
       taxDocumentNumber: raw.taxDocumentNumber,
       taxWithholdingAmount: raw.taxWithholdingAmount,
-      taxDeductionType: raw.taxDeductionType as any,
+      taxDeductionType: raw.taxDeductionType,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

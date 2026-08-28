@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+
 import { PrismaService } from '../infrastructure/database/prisma/prisma.service';
-import { TaxDeductibleItem, TaxProjectionResult } from './domain/tax-projection.entity';
 import { UpdateTaxProfileDto } from './infrastructure/dtos/update-tax-profile.dto';
+import {
+  TaxDeductibleItem,
+  TaxProjectionResult,
+} from './domain/tax-projection.entity';
 
 // Parámetros históricos de UIT por año fiscal en Perú
 export const UIT_ANNUAL_VALUES: Record<number, number> = {
@@ -48,7 +52,10 @@ export class TaxService {
     };
   }
 
-  async getDeductibleItems(userId: string, year: number): Promise<TaxDeductibleItem[]> {
+  async getDeductibleItems(
+    userId: string,
+    year: number,
+  ): Promise<TaxDeductibleItem[]> {
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31, 23, 59, 59);
 
@@ -71,10 +78,10 @@ export class TaxService {
           break;
         case 'RENTAL':
         case 'PROFESSIONAL_SERVICE':
-          pct = 0.30; // 30%
+          pct = 0.3; // 30%
           break;
         case 'DOMESTIC_WORKER':
-          pct = 1.00; // 100%
+          pct = 1.0; // 100%
           break;
         default:
           pct = 0.15;
@@ -96,7 +103,10 @@ export class TaxService {
     });
   }
 
-  async calculateProjection(userId: string, year: number): Promise<TaxProjectionResult> {
+  async calculateProjection(
+    userId: string,
+    year: number,
+  ): Promise<TaxProjectionResult> {
     const uitValue = UIT_ANNUAL_VALUES[year] || 5350;
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31, 23, 59, 59);
@@ -128,9 +138,12 @@ export class TaxService {
 
     // 2. Deducción del 20% legal sobre 4ta Categoría (Máximo 24 UIT)
     const max24Uit = 24 * uitValue;
-    const raw20PctDeduction = grossFourthCategory * 0.20;
+    const raw20PctDeduction = grossFourthCategory * 0.2;
     const fourthCategoryDeduction20 = Math.min(raw20PctDeduction, max24Uit);
-    const netFourthCategory = Math.max(0, grossFourthCategory - fourthCategoryDeduction20);
+    const netFourthCategory = Math.max(
+      0,
+      grossFourthCategory - fourthCategoryDeduction20,
+    );
 
     // 3. Renta de 5ta Categoría (No tiene el 20% de deducción)
     const netFifthCategory = grossFifthCategory;
@@ -145,8 +158,14 @@ export class TaxService {
 
     // Calcular deducciones de 3 UIT
     const deductibleItems = await this.getDeductibleItems(userId, year);
-    const totalDeductible3UitRaw = deductibleItems.reduce((sum, item) => sum + item.deductibleAmount, 0);
-    const appliedDeductible3Uit = Math.min(totalDeductible3UitRaw, deductible3UitLimit);
+    const totalDeductible3UitRaw = deductibleItems.reduce(
+      (sum, item) => sum + item.deductibleAmount,
+      0,
+    );
+    const appliedDeductible3Uit = Math.min(
+      totalDeductible3UitRaw,
+      deductible3UitLimit,
+    );
 
     const totalDeductions = fixedDeduction7Uit + appliedDeductible3Uit;
 
@@ -192,7 +211,7 @@ export class TaxService {
       {
         bracketNumber: 4,
         description: 'Más de 35 hasta 45 UIT',
-        rate: 0.20,
+        rate: 0.2,
         uitRange: '35 - 45 UIT',
         taxableAmount: 0,
         taxAmount: 0,
@@ -200,7 +219,7 @@ export class TaxService {
       {
         bracketNumber: 5,
         description: 'Más de 45 UIT',
-        rate: 0.30,
+        rate: 0.3,
         uitRange: '> 45 UIT',
         taxableAmount: 0,
         taxAmount: 0,
@@ -240,7 +259,7 @@ export class TaxService {
       const bracket4Capacity = uit45 - uit35;
       const taxable = Math.min(remainingTaxable, bracket4Capacity);
       brackets[3].taxableAmount = taxable;
-      brackets[3].taxAmount = Math.round(taxable * 0.20 * 100) / 100;
+      brackets[3].taxAmount = Math.round(taxable * 0.2 * 100) / 100;
       remainingTaxable -= taxable;
     }
 
@@ -248,13 +267,18 @@ export class TaxService {
     if (remainingTaxable > 0) {
       const taxable = remainingTaxable;
       brackets[4].taxableAmount = taxable;
-      brackets[4].taxAmount = Math.round(taxable * 0.30 * 100) / 100;
+      brackets[4].taxAmount = Math.round(taxable * 0.3 * 100) / 100;
       remainingTaxable = 0;
     }
 
-    const totalCalculatedTax = brackets.reduce((sum, b) => sum + b.taxAmount, 0);
-    const totalWithholdings = fourthCategoryWithholdings + fifthCategoryWithholdings;
-    const estimatedTaxDue = Math.round((totalCalculatedTax - totalWithholdings) * 100) / 100;
+    const totalCalculatedTax = brackets.reduce(
+      (sum, b) => sum + b.taxAmount,
+      0,
+    );
+    const totalWithholdings =
+      fourthCategoryWithholdings + fifthCategoryWithholdings;
+    const estimatedTaxDue =
+      Math.round((totalCalculatedTax - totalWithholdings) * 100) / 100;
 
     let status: 'PAYMENT_DUE' | 'REFUND_DUE' | 'ZERO' = 'ZERO';
     if (estimatedTaxDue > 0.01) {
@@ -268,7 +292,8 @@ export class TaxService {
       uitValue,
       currency: 'PEN',
       grossFourthCategory: Math.round(grossFourthCategory * 100) / 100,
-      fourthCategoryDeduction20: Math.round(fourthCategoryDeduction20 * 100) / 100,
+      fourthCategoryDeduction20:
+        Math.round(fourthCategoryDeduction20 * 100) / 100,
       netFourthCategory: Math.round(netFourthCategory * 100) / 100,
       grossFifthCategory: Math.round(grossFifthCategory * 100) / 100,
       netFifthCategory: Math.round(netFifthCategory * 100) / 100,
@@ -281,8 +306,10 @@ export class TaxService {
       netTaxableIncome: Math.round(netTaxableIncome * 100) / 100,
       brackets,
       totalCalculatedTax: Math.round(totalCalculatedTax * 100) / 100,
-      fourthCategoryWithholdings: Math.round(fourthCategoryWithholdings * 100) / 100,
-      fifthCategoryWithholdings: Math.round(fifthCategoryWithholdings * 100) / 100,
+      fourthCategoryWithholdings:
+        Math.round(fourthCategoryWithholdings * 100) / 100,
+      fifthCategoryWithholdings:
+        Math.round(fifthCategoryWithholdings * 100) / 100,
       totalWithholdings: Math.round(totalWithholdings * 100) / 100,
       estimatedTaxDue,
       status,

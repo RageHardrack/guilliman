@@ -1,10 +1,5 @@
 export type AccountType =
-  | 'CHECKING'
-  | 'SAVINGS'
-  | 'CREDIT_CARD'
-  | 'CASH'
-  | 'INVESTMENT'
-  | 'WALLET';
+  'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'CASH' | 'INVESTMENT' | 'WALLET';
 
 export interface AccountProps {
   id: string;

@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+
+import { SavingsGoal } from '../../domain/savings-goal.entity';
+import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import {
   CreateSavingsGoalData,
   SavingsGoalRepositoryPort,
   UpdateSavingsGoalData,
 } from '../../application/ports/savings-goal.repository.port';
-import { SavingsGoal } from '../../domain/savings-goal.entity';
-import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 
 @Injectable()
 export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
@@ -65,14 +66,25 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
   }
 
   async update(id: string, data: UpdateSavingsGoalData): Promise<SavingsGoal> {
-    const existing = await this.prisma.savingsGoal.findUnique({ where: { id } });
+    const existing = await this.prisma.savingsGoal.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException(`Meta de ahorro con ID ${id} no encontrada.`);
     }
 
-    const nextCurrent = data.currentAmount !== undefined ? data.currentAmount : existing.currentAmount;
-    const nextTarget = data.targetAmount !== undefined ? data.targetAmount : existing.targetAmount;
-    const isCompleted = data.isCompleted !== undefined ? data.isCompleted : nextCurrent >= nextTarget;
+    const nextCurrent =
+      data.currentAmount !== undefined
+        ? data.currentAmount
+        : existing.currentAmount;
+    const nextTarget =
+      data.targetAmount !== undefined
+        ? data.targetAmount
+        : existing.targetAmount;
+    const isCompleted =
+      data.isCompleted !== undefined
+        ? data.isCompleted
+        : nextCurrent >= nextTarget;
 
     const model = await this.prisma.savingsGoal.update({
       where: { id },
@@ -86,7 +98,9 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
   }
 
   async delete(id: string): Promise<void> {
-    const existing = await this.prisma.savingsGoal.findUnique({ where: { id } });
+    const existing = await this.prisma.savingsGoal.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException(`Meta de ahorro con ID ${id} no encontrada.`);
     }
@@ -96,15 +110,23 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
     });
   }
 
-  async deposit(id: string, amount: number, accountId?: string): Promise<SavingsGoal> {
+  async deposit(
+    id: string,
+    amount: number,
+    accountId?: string,
+  ): Promise<SavingsGoal> {
     return this.prisma.$transaction(async (tx) => {
       const goal = await tx.savingsGoal.findUnique({ where: { id } });
       if (!goal) {
-        throw new NotFoundException(`Meta de ahorro con ID ${id} no encontrada.`);
+        throw new NotFoundException(
+          `Meta de ahorro con ID ${id} no encontrada.`,
+        );
       }
 
       if (accountId) {
-        const account = await tx.account.findUnique({ where: { id: accountId } });
+        const account = await tx.account.findUnique({
+          where: { id: accountId },
+        });
         if (account) {
           await tx.account.update({
             where: { id: accountId },
@@ -140,18 +162,26 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
     });
   }
 
-  async withdraw(id: string, amount: number, accountId?: string): Promise<SavingsGoal> {
+  async withdraw(
+    id: string,
+    amount: number,
+    accountId?: string,
+  ): Promise<SavingsGoal> {
     return this.prisma.$transaction(async (tx) => {
       const goal = await tx.savingsGoal.findUnique({ where: { id } });
       if (!goal) {
-        throw new NotFoundException(`Meta de ahorro con ID ${id} no encontrada.`);
+        throw new NotFoundException(
+          `Meta de ahorro con ID ${id} no encontrada.`,
+        );
       }
 
       const updatedCurrent = Math.max(0, goal.currentAmount - amount);
       const isCompleted = updatedCurrent >= goal.targetAmount;
 
       if (accountId) {
-        const account = await tx.account.findUnique({ where: { id: accountId } });
+        const account = await tx.account.findUnique({
+          where: { id: accountId },
+        });
         if (account) {
           await tx.account.update({
             where: { id: accountId },

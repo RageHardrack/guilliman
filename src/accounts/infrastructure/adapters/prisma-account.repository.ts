@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Account as PrismaAccount } from '@prisma/client';
 
-import { Account, AccountType } from '../../domain/account.entity';
+import { Account } from '../../domain/account.entity';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import {
   AccountRepositoryPort,
@@ -84,7 +84,8 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
         throw new Error(`Cuenta con ID ${id} no encontrada.`);
       }
 
-      const discrepancy = Math.round((realBalance - account.balance) * 100) / 100;
+      const discrepancy =
+        Math.round((realBalance - account.balance) * 100) / 100;
 
       if (discrepancy !== 0) {
         // Create an automatic adjustment transaction
@@ -95,7 +96,9 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
             amount: Math.abs(discrepancy),
             type: discrepancy > 0 ? 'INCOME' : 'EXPENSE',
             date: new Date(),
-            note: note || `Ajuste de saldo / Conciliación (${discrepancy > 0 ? '+' : ''}${discrepancy} ${account.currency})`,
+            note:
+              note ||
+              `Ajuste de saldo / Conciliación (${discrepancy > 0 ? '+' : ''}${discrepancy} ${account.currency})`,
           },
         });
 
@@ -123,7 +126,7 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
       id: raw.id,
       userId: raw.userId,
       name: raw.name,
-      type: raw.type as AccountType,
+      type: raw.type,
       balance: raw.balance,
       currency: raw.currency,
       createdAt: raw.createdAt,

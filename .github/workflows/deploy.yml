@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/ragehardrack/lascar-guilliman
+  IMAGE_NAME: ghcr.io/ragehardrack/guilliman
 
 jobs:
   test:

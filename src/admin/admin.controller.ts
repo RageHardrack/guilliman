@@ -13,13 +13,13 @@ import {
 import { Role } from '@prisma/client';
 
 import { AdminService } from './admin.service';
-import { CreateAdminUserDto } from './dtos/create-user.dto';
-import { ResetPasswordDto } from './dtos/reset-password.dto';
-import { UpdateAdminUserDto } from './dtos/update-user.dto';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateAdminUserDto } from './dtos/create-user.dto';
+import { UpdateAdminUserDto } from './dtos/update-user.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -42,7 +42,9 @@ export class AdminController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar rol, estado o perfil de un usuario (Admin)' })
+  @ApiOperation({
+    summary: 'Actualizar rol, estado o perfil de un usuario (Admin)',
+  })
   async updateUser(
     @Param('id') id: string,
     @Body() dto: UpdateAdminUserDto,
@@ -53,15 +55,14 @@ export class AdminController {
 
   @Patch(':id/password')
   @ApiOperation({ summary: 'Restablecer contraseña de un usuario (Admin)' })
-  async resetPassword(
-    @Param('id') id: string,
-    @Body() dto: ResetPasswordDto,
-  ) {
+  async resetPassword(@Param('id') id: string, @Body() dto: ResetPasswordDto) {
     return this.adminService.resetPassword(id, dto);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar un usuario y sus datos asociados (Admin)' })
+  @ApiOperation({
+    summary: 'Eliminar un usuario y sus datos asociados (Admin)',
+  })
   async deleteUser(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; role: Role },

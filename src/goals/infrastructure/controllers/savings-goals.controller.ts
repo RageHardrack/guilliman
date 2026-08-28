@@ -1,4 +1,10 @@
 import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   Body,
   Controller,
   Delete,
@@ -9,13 +15,13 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { DepositWithdrawDto } from '../dtos/deposit-withdraw.dto';
 import { CurrentUser } from '../../../auth/current-user.decorator';
-import type { SavingsGoalRepositoryPort } from '../../application/ports/savings-goal.repository.port';
 import { CreateSavingsGoalDto } from '../dtos/create-savings-goal.dto';
 import { UpdateSavingsGoalDto } from '../dtos/update-savings-goal.dto';
-import { DepositWithdrawDto } from '../dtos/deposit-withdraw.dto';
+import type { SavingsGoalRepositoryPort } from '../../application/ports/savings-goal.repository.port';
 
 @ApiTags('SavingsGoals')
 @ApiBearerAuth()
@@ -64,10 +70,7 @@ export class SavingsGoalsController {
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar una meta de ahorro existente' })
   @ApiResponse({ status: 200, description: 'Meta actualizada con éxito' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateSavingsGoalDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateSavingsGoalDto) {
     return this.repository.update(id, {
       ...dto,
       targetDate: dto.targetDate ? new Date(dto.targetDate) : undefined,
@@ -85,20 +88,14 @@ export class SavingsGoalsController {
   @Post(':id/deposit')
   @ApiOperation({ summary: 'Abonar fondos a una meta de ahorro' })
   @ApiResponse({ status: 200, description: 'Abono realizado con éxito' })
-  async deposit(
-    @Param('id') id: string,
-    @Body() dto: DepositWithdrawDto,
-  ) {
+  async deposit(@Param('id') id: string, @Body() dto: DepositWithdrawDto) {
     return this.repository.deposit(id, dto.amount, dto.accountId);
   }
 
   @Post(':id/withdraw')
   @ApiOperation({ summary: 'Retirar fondos de una meta de ahorro' })
   @ApiResponse({ status: 200, description: 'Retiro realizado con éxito' })
-  async withdraw(
-    @Param('id') id: string,
-    @Body() dto: DepositWithdrawDto,
-  ) {
+  async withdraw(@Param('id') id: string, @Body() dto: DepositWithdrawDto) {
     return this.repository.withdraw(id, dto.amount, dto.accountId);
   }
 }

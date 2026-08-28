@@ -16,10 +16,16 @@ export class SavingsGoal {
 
   get progressPercentage(): number {
     if (this.targetAmount <= 0) return 100;
-    return Math.min(100, Math.round((this.currentAmount / this.targetAmount) * 1000) / 10);
+    return Math.min(
+      100,
+      Math.round((this.currentAmount / this.targetAmount) * 1000) / 10,
+    );
   }
 
   get remainingAmount(): number {
-    return Math.max(0, Math.round((this.targetAmount - this.currentAmount) * 100) / 100);
+    return Math.max(
+      0,
+      Math.round((this.targetAmount - this.currentAmount) * 100) / 100,
+    );
   }
 }

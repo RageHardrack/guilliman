@@ -69,7 +69,10 @@ export class BudgetsController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar un presupuesto por ID' })
-  @ApiResponse({ status: 200, description: 'Presupuesto actualizado exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Presupuesto actualizado exitosamente',
+  })
   @ApiResponse({ status: 404, description: 'Presupuesto no encontrado' })
   async update(
     @Param('id') id: string,

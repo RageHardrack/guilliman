@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Category as PrismaCategory } from '@prisma/client';
 
-import { Category, CategoryType } from '../../domain/category.entity';
+import { Category } from '../../domain/category.entity';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import {
   CategoryRepositoryPort,
@@ -54,8 +54,12 @@ export class PrismaCategoryRepository implements CategoryRepositoryPort {
         ...(data.icon !== undefined && { icon: data.icon }),
         ...(data.color !== undefined && { color: data.color }),
         ...(data.parentId !== undefined && { parentId: data.parentId }),
-        ...(data.taxCategory !== undefined && { taxCategory: data.taxCategory as any }),
-        ...(data.taxDeductionType !== undefined && { taxDeductionType: data.taxDeductionType as any }),
+        ...(data.taxCategory !== undefined && {
+          taxCategory: data.taxCategory as any,
+        }),
+        ...(data.taxDeductionType !== undefined && {
+          taxDeductionType: data.taxDeductionType as any,
+        }),
       },
     });
     return this.mapToDomain(raw);
@@ -77,10 +81,10 @@ export class PrismaCategoryRepository implements CategoryRepositoryPort {
       name: raw.name,
       icon: raw.icon,
       color: raw.color,
-      type: raw.type as CategoryType,
+      type: raw.type,
       parentId: raw.parentId,
-      taxCategory: raw.taxCategory as any,
-      taxDeductionType: raw.taxDeductionType as any,
+      taxCategory: raw.taxCategory,
+      taxDeductionType: raw.taxDeductionType,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

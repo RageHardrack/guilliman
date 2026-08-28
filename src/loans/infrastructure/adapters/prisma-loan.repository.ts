@@ -1,10 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
-import { LoanRepositoryPort } from '../../application/ports/loan.repository.port';
-import { Loan, LoanPayment, LoanStatus, LoanType } from '../../domain/loan.entity';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+
 import { CreateLoanDto } from '../dtos/create-loan.dto';
-import { CreateLoanPaymentDto } from '../dtos/create-loan-payment.dto';
 import { UpdateLoanDto } from '../dtos/update-loan.dto';
+import { CreateLoanPaymentDto } from '../dtos/create-loan-payment.dto';
+import { LoanRepositoryPort } from '../../application/ports/loan.repository.port';
+import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
+import {
+  Loan,
+  LoanPayment,
+  LoanStatus,
+  LoanType,
+} from '../../domain/loan.entity';
 
 @Injectable()
 export class PrismaLoanRepository implements LoanRepositoryPort {
@@ -36,7 +46,9 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
       record.notes,
       record.createdAt,
       record.updatedAt,
-      record.payments ? record.payments.map((p: any) => this.mapPaymentToEntity(p)) : [],
+      record.payments
+        ? record.payments.map((p: any) => this.mapPaymentToEntity(p))
+        : [],
     );
   }
 
@@ -144,14 +156,18 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
     const dataToUpdate: any = {};
     if (dto.personName !== undefined) dataToUpdate.personName = dto.personName;
     if (dto.currency !== undefined) dataToUpdate.currency = dto.currency;
-    if (dto.dueDate !== undefined) dataToUpdate.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
+    if (dto.dueDate !== undefined)
+      dataToUpdate.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     if (dto.status !== undefined) dataToUpdate.status = dto.status;
     if (dto.notes !== undefined) dataToUpdate.notes = dto.notes;
 
     if (dto.amount !== undefined && dto.amount !== existing.amount) {
       const diff = dto.amount - existing.amount;
       dataToUpdate.amount = dto.amount;
-      dataToUpdate.remainingAmount = Math.max(0, existing.remainingAmount + diff);
+      dataToUpdate.remainingAmount = Math.max(
+        0,
+        existing.remainingAmount + diff,
+      );
       if (dataToUpdate.remainingAmount <= 0.01) {
         dataToUpdate.status = 'PAID';
       } else if (dataToUpdate.remainingAmount < dto.amount) {
@@ -183,7 +199,10 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
     await this.prisma.loan.delete({ where: { id } });
   }
 
-  async addPayment(loanId: string, dto: CreateLoanPaymentDto): Promise<{ loan: Loan; payment: LoanPayment }> {
+  async addPayment(
+    loanId: string,
+    dto: CreateLoanPaymentDto,
+  ): Promise<{ loan: Loan; payment: LoanPayment }> {
     return await this.prisma.$transaction(async (tx: any) => {
       const loan = await tx.loan.findUnique({
         where: { id: loanId },
@@ -195,7 +214,9 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
       }
 
       if (dto.amount <= 0) {
-        throw new BadRequestException('Payment amount must be greater than zero');
+        throw new BadRequestException(
+          'Payment amount must be greater than zero',
+        );
       }
 
       const paymentDate = dto.date ? new Date(dto.date) : new Date();
@@ -209,7 +230,10 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
         },
       });
 
-      const newRemaining = Math.max(0, Math.round((loan.remainingAmount - dto.amount) * 100) / 100);
+      const newRemaining = Math.max(
+        0,
+        Math.round((loan.remainingAmount - dto.amount) * 100) / 100,
+      );
       let newStatus: LoanStatus = 'PARTIALLY_PAID';
       if (newRemaining <= 0.01) {
         newStatus = 'PAID';
@@ -287,7 +311,9 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
       });
 
       if (!payment) {
-        throw new NotFoundException(`Loan payment with id ${paymentId} not found`);
+        throw new NotFoundException(
+          `Loan payment with id ${paymentId} not found`,
+        );
       }
 
       const loan = await tx.loan.findUnique({
@@ -301,7 +327,10 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
 
       await tx.loanPayment.delete({ where: { id: paymentId } });
 
-      const newRemaining = Math.min(loan.amount, Math.round((loan.remainingAmount + payment.amount) * 100) / 100);
+      const newRemaining = Math.min(
+        loan.amount,
+        Math.round((loan.remainingAmount + payment.amount) * 100) / 100,
+      );
       let newStatus: LoanStatus = 'PARTIALLY_PAID';
       if (newRemaining >= loan.amount) {
         newStatus = 'PENDING';

@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
+
+import { SavingsGoal } from '../../domain/savings-goal.entity';
 import { SavingsGoalsController } from './savings-goals.controller';
 import type { SavingsGoalRepositoryPort } from '../../application/ports/savings-goal.repository.port';
-import { SavingsGoal } from '../../domain/savings-goal.entity';
 
 describe('SavingsGoalsController', () => {
   let controller: SavingsGoalsController;
@@ -37,11 +38,14 @@ describe('SavingsGoalsController', () => {
   });
 
   it('should create a new savings goal', async () => {
-    const result = await controller.create({ userId: 'user-1' }, {
-      name: 'Fondo de Emergencia',
-      targetAmount: 5000,
-      currency: 'USD',
-    });
+    const result = await controller.create(
+      { userId: 'user-1' },
+      {
+        name: 'Fondo de Emergencia',
+        targetAmount: 5000,
+        currency: 'USD',
+      },
+    );
 
     expect(result).toBe(mockGoal);
     expect(repository.create).toHaveBeenCalled();

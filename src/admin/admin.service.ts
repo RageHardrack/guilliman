@@ -5,12 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { Role } from '@prisma/client';
 
 import { CreateAdminUserDto } from './dtos/create-user.dto';
-import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { UpdateAdminUserDto } from './dtos/update-user.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { PrismaService } from '../infrastructure/database/prisma/prisma.service';
 
 @Injectable()
@@ -64,7 +64,8 @@ export class AdminService {
         name: dto.name,
         role: dto.role ?? Role.USER,
         isActive: dto.isActive !== undefined ? dto.isActive : true,
-        taxProfileEnabled: dto.taxProfileEnabled !== undefined ? dto.taxProfileEnabled : false,
+        taxProfileEnabled:
+          dto.taxProfileEnabled !== undefined ? dto.taxProfileEnabled : false,
         taxCountry: dto.taxCountry || 'PE',
         taxRuc: dto.taxRuc || null,
       },
@@ -123,7 +124,8 @@ export class AdminService {
           dto.taxProfileEnabled !== undefined
             ? dto.taxProfileEnabled
             : user.taxProfileEnabled,
-        taxCountry: dto.taxCountry !== undefined ? dto.taxCountry : user.taxCountry,
+        taxCountry:
+          dto.taxCountry !== undefined ? dto.taxCountry : user.taxCountry,
         taxRuc: dto.taxRuc !== undefined ? dto.taxRuc : user.taxRuc,
       },
       select: {

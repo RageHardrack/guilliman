@@ -54,18 +54,28 @@ export class CreateTransactionDto {
   note?: string;
 
   @ApiPropertyOptional({
-    enum: ['NONE', 'FOURTH_CATEGORY_INCOME', 'FIFTH_CATEGORY_INCOME', 'DEDUCTIBLE_EXPENSE_3UIT'],
+    enum: [
+      'NONE',
+      'FOURTH_CATEGORY_INCOME',
+      'FIFTH_CATEGORY_INCOME',
+      'DEDUCTIBLE_EXPENSE_3UIT',
+    ],
     example: 'FOURTH_CATEGORY_INCOME',
     description: 'Categoría tributaria (SUNAT)',
   })
-  taxCategory?: 'NONE' | 'FOURTH_CATEGORY_INCOME' | 'FIFTH_CATEGORY_INCOME' | 'DEDUCTIBLE_EXPENSE_3UIT';
+  taxCategory?:
+    | 'NONE'
+    | 'FOURTH_CATEGORY_INCOME'
+    | 'FIFTH_CATEGORY_INCOME'
+    | 'DEDUCTIBLE_EXPENSE_3UIT';
 
   @ApiPropertyOptional({
     enum: ['NONE', 'RXH', 'FACTURA', 'BOLETA', 'PAYROLL_SLIP', 'OTHER'],
     example: 'RXH',
     description: 'Tipo de comprobante tributario',
   })
-  taxDocumentType?: 'NONE' | 'RXH' | 'FACTURA' | 'BOLETA' | 'PAYROLL_SLIP' | 'OTHER';
+  taxDocumentType?:
+    'NONE' | 'RXH' | 'FACTURA' | 'BOLETA' | 'PAYROLL_SLIP' | 'OTHER';
 
   @ApiPropertyOptional({
     example: 'E001-45',
@@ -80,9 +90,22 @@ export class CreateTransactionDto {
   taxWithholdingAmount?: number;
 
   @ApiPropertyOptional({
-    enum: ['NONE', 'RESTAURANT_BAR', 'HOTEL', 'RENTAL', 'PROFESSIONAL_SERVICE', 'DOMESTIC_WORKER'],
+    enum: [
+      'NONE',
+      'RESTAURANT_BAR',
+      'HOTEL',
+      'RENTAL',
+      'PROFESSIONAL_SERVICE',
+      'DOMESTIC_WORKER',
+    ],
     example: 'RESTAURANT_BAR',
     description: 'Tipo de deducción adicional 3 UIT',
   })
-  taxDeductionType?: 'NONE' | 'RESTAURANT_BAR' | 'HOTEL' | 'RENTAL' | 'PROFESSIONAL_SERVICE' | 'DOMESTIC_WORKER';
+  taxDeductionType?:
+    | 'NONE'
+    | 'RESTAURANT_BAR'
+    | 'HOTEL'
+    | 'RENTAL'
+    | 'PROFESSIONAL_SERVICE'
+    | 'DOMESTIC_WORKER';
 }

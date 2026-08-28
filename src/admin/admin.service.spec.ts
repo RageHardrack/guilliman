@@ -1,7 +1,10 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminService } from './admin.service';
@@ -28,7 +31,12 @@ describe('AdminService', () => {
   describe('listUsers', () => {
     it('should return list of users with counts', async () => {
       const mockUsers = [
-        { id: 'u1', email: 'admin@lascar.dev', role: Role.ADMIN, _count: { accounts: 2, transactions: 10 } },
+        {
+          id: 'u1',
+          email: 'admin@lascar.dev',
+          role: Role.ADMIN,
+          _count: { accounts: 2, transactions: 10 },
+        },
       ];
       vi.mocked(prisma.user.findMany).mockResolvedValueOnce(mockUsers as any);
 
@@ -40,16 +48,25 @@ describe('AdminService', () => {
 
   describe('createUser', () => {
     it('should throw ConflictException if email exists', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'u1' } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'u1',
+      } as any);
 
       await expect(
-        service.createUser({ email: 'existing@lascar.dev', password: 'password123' }),
+        service.createUser({
+          email: 'existing@lascar.dev',
+          password: 'password123',
+        }),
       ).rejects.toThrow(ConflictException);
     });
 
     it('should hash password and create user with specified role', async () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null);
-      const mockCreated = { id: 'u2', email: 'new@lascar.dev', role: Role.ADMIN };
+      const mockCreated = {
+        id: 'u2',
+        email: 'new@lascar.dev',
+        role: Role.ADMIN,
+      };
       vi.mocked(prisma.user.create).mockResolvedValueOnce(mockCreated as any);
 
       const result = await service.createUser({
@@ -74,7 +91,11 @@ describe('AdminService', () => {
     });
 
     it('should throw BadRequestException if admin tries to deactivate themselves', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'admin-1', role: Role.ADMIN, isActive: true } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'admin-1',
+        role: Role.ADMIN,
+        isActive: true,
+      } as any);
 
       await expect(
         service.updateUser('admin-1', 'admin-1', { isActive: false }),
@@ -120,10 +141,14 @@ describe('AdminService', () => {
     });
 
     it('should update user password hash', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'u1' } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'u1',
+      } as any);
       vi.mocked(prisma.user.update).mockResolvedValueOnce({ id: 'u1' } as any);
 
-      const result = await service.resetPassword('u1', { password: 'newPassword123' });
+      const result = await service.resetPassword('u1', {
+        password: 'newPassword123',
+      });
       expect(result.success).toBe(true);
       expect(prisma.user.update).toHaveBeenCalled();
     });
@@ -145,12 +170,18 @@ describe('AdminService', () => {
     });
 
     it('should delete user successfully', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-2' } as any);
-      vi.mocked(prisma.user.delete).mockResolvedValueOnce({ id: 'user-2' } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'user-2',
+      } as any);
+      vi.mocked(prisma.user.delete).mockResolvedValueOnce({
+        id: 'user-2',
+      } as any);
 
       const result = await service.deleteUser('admin-1', 'user-2');
       expect(result.success).toBe(true);
-      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-2' } });
+      expect(prisma.user.delete).toHaveBeenCalledWith({
+        where: { id: 'user-2' },
+      });
     });
   });
 });

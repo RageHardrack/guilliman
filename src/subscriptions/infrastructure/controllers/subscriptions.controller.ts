@@ -73,7 +73,10 @@ export class SubscriptionsController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar una suscripción por ID' })
-  @ApiResponse({ status: 200, description: 'Suscripción actualizada exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Suscripción actualizada exitosamente',
+  })
   @ApiResponse({ status: 404, description: 'Suscripción no encontrada' })
   async update(
     @Param('id') id: string,

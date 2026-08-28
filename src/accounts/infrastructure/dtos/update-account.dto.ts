@@ -10,7 +10,14 @@ export class UpdateAccountDto {
   name?: string;
 
   @ApiPropertyOptional({
-    enum: ['CHECKING', 'SAVINGS', 'CREDIT_CARD', 'CASH', 'INVESTMENT', 'WALLET'],
+    enum: [
+      'CHECKING',
+      'SAVINGS',
+      'CREDIT_CARD',
+      'CASH',
+      'INVESTMENT',
+      'WALLET',
+    ],
     example: 'SAVINGS',
     description: 'Tipo de cuenta',
   })

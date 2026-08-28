@@ -20,7 +20,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post('register')
-  @ApiOperation({ summary: 'Registrar nuevo usuario (Solo administrador autenticado)' })
+  @ApiOperation({
+    summary: 'Registrar nuevo usuario (Solo administrador autenticado)',
+  })
   @ApiResponse({ status: 201, description: 'Usuario registrado exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos de registro inválidos' })
   @ApiResponse({ status: 401, description: 'No autorizado' })

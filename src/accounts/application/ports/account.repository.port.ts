@@ -18,5 +18,9 @@ export abstract class AccountRepositoryPort {
     data: Partial<Omit<CreateAccountData, 'userId'>>,
   ): Promise<Account>;
   abstract delete(id: string): Promise<boolean>;
-  abstract reconcile(id: string, realBalance: number, note?: string): Promise<{ account: Account; discrepancy: number }>;
+  abstract reconcile(
+    id: string,
+    realBalance: number,
+    note?: string,
+  ): Promise<{ account: Account; discrepancy: number }>;
 }

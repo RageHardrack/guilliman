@@ -29,5 +29,9 @@ export interface SavingsGoalRepositoryPort {
   update(id: string, data: UpdateSavingsGoalData): Promise<SavingsGoal>;
   delete(id: string): Promise<void>;
   deposit(id: string, amount: number, accountId?: string): Promise<SavingsGoal>;
-  withdraw(id: string, amount: number, accountId?: string): Promise<SavingsGoal>;
+  withdraw(
+    id: string,
+    amount: number,
+    accountId?: string,
+  ): Promise<SavingsGoal>;
 }

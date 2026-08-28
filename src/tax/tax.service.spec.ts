@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+
 import { TaxService } from './tax.service';
 import { PrismaService } from '../infrastructure/database/prisma/prisma.service';
 

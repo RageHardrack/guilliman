@@ -79,12 +79,19 @@ export class AccountsController {
 
   @Post(':id/reconcile')
   @ApiOperation({ summary: 'Conciliar y ajustar el saldo real de la cuenta' })
-  @ApiResponse({ status: 200, description: 'Cuenta conciliada y saldo ajustado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cuenta conciliada y saldo ajustado',
+  })
   async reconcile(
     @Param('id') id: string,
     @Body() dto: { realBalance: number; note?: string },
   ) {
-    const result = await this.accountRepository.reconcile(id, dto.realBalance, dto.note);
+    const result = await this.accountRepository.reconcile(
+      id,
+      dto.realBalance,
+      dto.note,
+    );
     return {
       account: result.account.toJSON(),
       discrepancy: result.discrepancy,

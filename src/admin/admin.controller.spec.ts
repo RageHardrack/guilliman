@@ -1,8 +1,8 @@
 import { Role } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { AdminController } from './admin.controller';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -30,7 +30,12 @@ describe('AdminController', () => {
   });
 
   it('should create user', async () => {
-    const dto = { email: 'new@lascar.dev', password: 'pass', name: 'User', role: Role.USER };
+    const dto = {
+      email: 'new@lascar.dev',
+      password: 'pass',
+      name: 'User',
+      role: Role.USER,
+    };
     const mockCreated = { id: 'u2', ...dto };
     vi.mocked(service.createUser).mockResolvedValueOnce(mockCreated as any);
 
@@ -54,7 +59,10 @@ describe('AdminController', () => {
 
   it('should reset password', async () => {
     const dto = { password: 'newPassword123' };
-    vi.mocked(service.resetPassword).mockResolvedValueOnce({ success: true, message: 'ok' });
+    vi.mocked(service.resetPassword).mockResolvedValueOnce({
+      success: true,
+      message: 'ok',
+    });
 
     const result = await controller.resetPassword('u2', dto);
     expect(result).toEqual({ success: true, message: 'ok' });
@@ -62,9 +70,15 @@ describe('AdminController', () => {
   });
 
   it('should delete user', async () => {
-    vi.mocked(service.deleteUser).mockResolvedValueOnce({ success: true, message: 'ok' });
+    vi.mocked(service.deleteUser).mockResolvedValueOnce({
+      success: true,
+      message: 'ok',
+    });
 
-    const result = await controller.deleteUser('u2', { userId: 'admin-1', role: Role.ADMIN });
+    const result = await controller.deleteUser('u2', {
+      userId: 'admin-1',
+      role: Role.ADMIN,
+    });
     expect(result).toEqual({ success: true, message: 'ok' });
     expect(service.deleteUser).toHaveBeenCalledWith('admin-1', 'u2');
   });

@@ -16,7 +16,14 @@ export class CreateAccountDto {
   name: string;
 
   @ApiProperty({
-    enum: ['CHECKING', 'SAVINGS', 'CREDIT_CARD', 'CASH', 'INVESTMENT', 'WALLET'],
+    enum: [
+      'CHECKING',
+      'SAVINGS',
+      'CREDIT_CARD',
+      'CASH',
+      'INVESTMENT',
+      'WALLET',
+    ],
     example: 'CHECKING',
     description: 'Tipo de cuenta',
   })

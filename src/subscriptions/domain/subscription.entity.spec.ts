@@ -89,9 +89,9 @@ describe('Subscription Entity', () => {
       frequency: 'SEMIANNUAL',
       nextDueDate: new Date('2026-08-01'),
     });
-    expect(semiannualSub.calculateNextDueDate().toISOString().slice(0, 10)).toBe(
-      '2027-02-01',
-    );
+    expect(
+      semiannualSub.calculateNextDueDate().toISOString().slice(0, 10),
+    ).toBe('2027-02-01');
 
     const yearlySub = new Subscription({
       userId: 'user-1',

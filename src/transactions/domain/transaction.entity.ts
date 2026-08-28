@@ -5,12 +5,7 @@ export type TaxCategory =
   | 'FIFTH_CATEGORY_INCOME'
   | 'DEDUCTIBLE_EXPENSE_3UIT';
 export type TaxDocumentType =
-  | 'NONE'
-  | 'RXH'
-  | 'FACTURA'
-  | 'BOLETA'
-  | 'PAYROLL_SLIP'
-  | 'OTHER';
+  'NONE' | 'RXH' | 'FACTURA' | 'BOLETA' | 'PAYROLL_SLIP' | 'OTHER';
 export type TaxDeductionType =
   | 'NONE'
   | 'RESTAURANT_BAR'

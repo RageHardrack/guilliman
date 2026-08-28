@@ -7,7 +7,9 @@ export class CreateLoanPaymentDto {
   @ApiPropertyOptional({ description: 'Fecha del abono' })
   date?: string;
 
-  @ApiPropertyOptional({ description: 'ID de la cuenta bancaria para conciliar el abono' })
+  @ApiPropertyOptional({
+    description: 'ID de la cuenta bancaria para conciliar el abono',
+  })
   accountId?: string;
 
   @ApiPropertyOptional({ description: 'Notas del abono' })

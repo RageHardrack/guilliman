@@ -13,7 +13,10 @@ export class UpdateLoanDto {
   @ApiPropertyOptional({ description: 'Fecha de vencimiento' })
   dueDate?: string;
 
-  @ApiPropertyOptional({ description: 'Estado del préstamo', enum: ['PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'] })
+  @ApiPropertyOptional({
+    description: 'Estado del préstamo',
+    enum: ['PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'],
+  })
   status?: 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
 
   @ApiPropertyOptional({ description: 'Notas' })

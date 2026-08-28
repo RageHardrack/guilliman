@@ -1,5 +1,8 @@
 import { Category, CategoryType } from '../../domain/category.entity';
-import type { TaxCategory, TaxDeductionType } from '../../../transactions/domain/transaction.entity';
+import type {
+  TaxCategory,
+  TaxDeductionType,
+} from '../../../transactions/domain/transaction.entity';
 
 export interface CreateCategoryData {
   userId: string;

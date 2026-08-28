@@ -8,11 +8,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
-import { LoanRepositoryPort } from '../../application/ports/loan.repository.port';
+
 import { CreateLoanDto } from '../dtos/create-loan.dto';
-import { CreateLoanPaymentDto } from '../dtos/create-loan-payment.dto';
 import { UpdateLoanDto } from '../dtos/update-loan.dto';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { CreateLoanPaymentDto } from '../dtos/create-loan-payment.dto';
+import { LoanRepositoryPort } from '../../application/ports/loan.repository.port';
 
 @UseGuards(JwtAuthGuard)
 @Controller('loans')
@@ -46,7 +47,10 @@ export class LoansController {
   }
 
   @Post(':id/payments')
-  async addPayment(@Param('id') loanId: string, @Body() dto: CreateLoanPaymentDto) {
+  async addPayment(
+    @Param('id') loanId: string,
+    @Body() dto: CreateLoanPaymentDto,
+  ) {
     return await this.loanRepository.addPayment(loanId, dto);
   }
 

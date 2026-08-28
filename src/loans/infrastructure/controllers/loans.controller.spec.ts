@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 import { LoansController } from './loans.controller';
-import { LoanRepositoryPort } from '../../application/ports/loan.repository.port';
 import { Loan, LoanPayment } from '../../domain/loan.entity';
+import { LoanRepositoryPort } from '../../application/ports/loan.repository.port';
 
 describe('LoansController', () => {
   let controller: LoansController;
@@ -32,10 +33,18 @@ describe('LoansController', () => {
       delete: vi.fn().mockResolvedValue(undefined),
       addPayment: vi.fn().mockResolvedValue({
         loan: { ...mockLoan, remainingAmount: 250, status: 'PARTIALLY_PAID' },
-        payment: new LoanPayment('pay-1', 'loan-123', 250, new Date(), null, null, new Date()),
+        payment: new LoanPayment(
+          'pay-1',
+          'loan-123',
+          250,
+          new Date(),
+          null,
+          null,
+          new Date(),
+        ),
       }),
       deletePayment: vi.fn().mockResolvedValue(mockLoan),
-    } as unknown as LoanRepositoryPort;
+    };
 
     controller = new LoansController(mockRepo);
   });
@@ -65,7 +74,9 @@ describe('LoansController', () => {
     const result = await controller.addPayment('loan-123', { amount: 250 });
     expect(result.loan.remainingAmount).toBe(250);
     expect(result.payment.amount).toBe(250);
-    expect(mockRepo.addPayment).toHaveBeenCalledWith('loan-123', { amount: 250 });
+    expect(mockRepo.addPayment).toHaveBeenCalledWith('loan-123', {
+      amount: 250,
+    });
   });
 
   it('debe calcular paidAmount y progressPercentage en la entidad', () => {

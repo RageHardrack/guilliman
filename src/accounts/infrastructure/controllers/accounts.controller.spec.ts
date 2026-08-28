@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
+
+import { Account } from '../../domain/account.entity';
 import { AccountsController } from './accounts.controller';
 import type { AccountRepositoryPort } from '../../application/ports/account.repository.port';
-import { Account } from '../../domain/account.entity';
 
 describe('AccountsController - Reconcile and Balance Adjustments', () => {
   let controller: AccountsController;
@@ -43,6 +44,10 @@ describe('AccountsController - Reconcile and Balance Adjustments', () => {
 
     expect(result.discrepancy).toBe(50);
     expect(result.account.balance).toBe(1050);
-    expect(repository.reconcile).toHaveBeenCalledWith('acc-1', 1050, 'Ajuste de intereses ganados');
+    expect(repository.reconcile).toHaveBeenCalledWith(
+      'acc-1',
+      1050,
+      'Ajuste de intereses ganados',
+    );
   });
 });

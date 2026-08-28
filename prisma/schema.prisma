@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  CASH
+  INVESTMENT
+  WALLET
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum RecurrenceFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  YEARLY
+  CUSTOM
+}
+
+enum LoanType {
+  LENT
+  BORROWED
+}
+
+enum LoanStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum TaxCategory {
+  NONE
+  FOURTH_CATEGORY_INCOME
+  FIFTH_CATEGORY_INCOME
+  DEDUCTIBLE_EXPENSE_3UIT
+}
+
+enum TaxDocumentType {
+  NONE
+  RXH
+  FACTURA
+  BOLETA
+  PAYROLL_SLIP
+  OTHER
+}
+
+enum TaxDeductionType {
+  NONE
+  RESTAURANT_BAR
+  HOTEL
+  RENTAL
+  PROFESSIONAL_SERVICE
+  DOMESTIC_WORKER
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  password          String
+  name              String?
+  role              Role           @default(USER)
+  isActive          Boolean        @default(true)
+  taxProfileEnabled Boolean        @default(false)
+  taxCountry        String         @default("PE")
+  taxRuc            String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  accounts          Account[]
+  categories        Category[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  subscriptions     Subscription[]
+  savingsGoals      SavingsGoal[]
+  loans             Loan[]
+
+  @@map("users")
+}
+
+model SavingsGoal {
+  id            String    @id @default(uuid())
+  userId        String
+  name          String
+  targetAmount  Float
+  currentAmount Float     @default(0.0)
+  currency      String    @default("USD")
+  targetDate    DateTime?
+  color         String?
+  icon          String?
+  isCompleted   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("savings_goals")
+}
+
+model Account {
+  id                      String         @id @default(uuid())
+  userId                  String
+  name                    String
+  type                    AccountType    @default(CHECKING)
+  balance                 Float          @default(0.0)
+  currency                String         @default("USD")
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+  user                    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions            Transaction[]  @relation("SourceAccount")
+  destinationTransactions Transaction[]  @relation("DestinationAccount")
+  subscriptions           Subscription[]
+
+  @@map("accounts")
+}
+
+model Category {
+  id               String           @id @default(uuid())
+  userId           String
+  name             String
+  icon             String?
+  color            String?
+  type             CategoryType     @default(EXPENSE)
+  parentId         String?
+  taxCategory      TaxCategory      @default(NONE)
+  taxDeductionType TaxDeductionType @default(NONE)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent           Category?        @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  subcategories    Category[]       @relation("CategoryHierarchy")
+  transactions     Transaction[]
+  budgets          Budget[]
+  subscriptions    Subscription[]
+
+  @@map("categories")
+}
+
+model Budget {
+  id         String   @id @default(uuid())
+  userId     String
+  categoryId String
+  amount     Float
+  currency   String   @default("USD")
+  period     String   @default("MONTHLY")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId])
+  @@map("budgets")
+}
+
+model Subscription {
+  id          String              @id @default(uuid())
+  userId      String
+  accountId   String
+  categoryId  String?
+  name        String
+  amount      Float
+  currency           String              @default("USD")
+  frequency          RecurrenceFrequency @default(MONTHLY)
+  customIntervalDays Int?
+  nextDueDate        DateTime
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category    Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@map("subscriptions")
+}
+
+model Transaction {
+  id                   String          @id @default(uuid())
+  userId               String
+  accountId            String
+  destinationAccountId String?
+  categoryId           String?
+  amount               Float
+  type                 TransactionType @default(EXPENSE)
+  date                 DateTime        @default(now())
+  note                 String?
+
+  // Metadatos tributarios (SUNAT / Tax Engine)
+  taxCategory          TaxCategory      @default(NONE)
+  taxDocumentType      TaxDocumentType  @default(NONE)
+  taxDocumentNumber    String?
+  taxWithholdingAmount Float?           @default(0.0)
+  taxDeductionType     TaxDeductionType @default(NONE)
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account            Account   @relation("SourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  destinationAccount Account?  @relation("DestinationAccount", fields: [destinationAccountId], references: [id], onDelete: SetNull)
+  category           Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@map("transactions")
+}
+
+model Loan {
+  id              String     @id @default(uuid())
+  userId          String
+  personName      String
+  type            LoanType   @default(LENT)
+  amount          Float
+  remainingAmount Float
+  currency        String     @default("USD")
+  dueDate         DateTime?
+  status          LoanStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments LoanPayment[]
+
+  @@map("loans")
+}
+
+model LoanPayment {
+  id        String   @id @default(uuid())
+  loanId    String
+  amount    Float
+  date      DateTime @default(now())
+  accountId String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@map("loan_payments")
+}

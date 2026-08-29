@@ -189,30 +189,50 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
       if (!existing) return false;
 
       await this.prisma.$transaction(async (tx) => {
-        // Revert balance changes
+        // Revert balance changes safely if accounts exist
         if (existing.type === 'INCOME') {
-          await tx.account.update({
+          const acc = await tx.account.findUnique({
             where: { id: existing.accountId },
-            data: { balance: { decrement: existing.amount } },
           });
+          if (acc) {
+            await tx.account.update({
+              where: { id: existing.accountId },
+              data: { balance: { decrement: existing.amount } },
+            });
+          }
         } else if (existing.type === 'EXPENSE') {
-          await tx.account.update({
+          const acc = await tx.account.findUnique({
             where: { id: existing.accountId },
-            data: { balance: { increment: existing.amount } },
           });
+          if (acc) {
+            await tx.account.update({
+              where: { id: existing.accountId },
+              data: { balance: { increment: existing.amount } },
+            });
+          }
         } else if (
           existing.type === 'TRANSFER' &&
           existing.destinationAccountId
         ) {
           const prevDestAmount = existing.destinationAmount ?? existing.amount;
-          await tx.account.update({
+          const srcAcc = await tx.account.findUnique({
             where: { id: existing.accountId },
-            data: { balance: { increment: existing.amount } },
           });
-          await tx.account.update({
+          if (srcAcc) {
+            await tx.account.update({
+              where: { id: existing.accountId },
+              data: { balance: { increment: existing.amount } },
+            });
+          }
+          const destAcc = await tx.account.findUnique({
             where: { id: existing.destinationAccountId },
-            data: { balance: { decrement: prevDestAmount } },
           });
+          if (destAcc) {
+            await tx.account.update({
+              where: { id: existing.destinationAccountId },
+              data: { balance: { decrement: prevDestAmount } },
+            });
+          }
         }
 
         await tx.transaction.delete({ where: { id } });

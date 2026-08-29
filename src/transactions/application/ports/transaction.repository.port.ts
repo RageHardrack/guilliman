@@ -12,6 +12,8 @@ export interface CreateTransactionData {
   destinationAccountId?: string;
   categoryId?: string;
   amount: number;
+  destinationAmount?: number;
+  exchangeRate?: number;
   type: TransactionType;
   date?: Date;
   note?: string;

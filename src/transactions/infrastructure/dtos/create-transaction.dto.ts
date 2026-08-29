@@ -33,6 +33,18 @@ export class CreateTransactionDto {
   })
   amount: number;
 
+  @ApiPropertyOptional({
+    example: 172.5,
+    description: 'Monto recibido en la cuenta destino (transferencias multimoneda)',
+  })
+  destinationAmount?: number;
+
+  @ApiPropertyOptional({
+    example: 3.75,
+    description: 'Tipo de cambio aplicado en la transferencia',
+  })
+  exchangeRate?: number;
+
   @ApiProperty({
     enum: ['INCOME', 'EXPENSE', 'TRANSFER'],
     example: 'EXPENSE',

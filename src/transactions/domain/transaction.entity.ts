@@ -21,6 +21,8 @@ export interface TransactionProps {
   destinationAccountId?: string | null;
   categoryId?: string | null;
   amount: number;
+  destinationAmount?: number | null;
+  exchangeRate?: number | null;
   type: TransactionType;
   date: Date;
   note?: string | null;
@@ -53,6 +55,12 @@ export class Transaction {
   }
   get amount(): number {
     return this.props.amount;
+  }
+  get destinationAmount(): number | null | undefined {
+    return this.props.destinationAmount;
+  }
+  get exchangeRate(): number | null | undefined {
+    return this.props.exchangeRate;
   }
   get type(): TransactionType {
     return this.props.type;

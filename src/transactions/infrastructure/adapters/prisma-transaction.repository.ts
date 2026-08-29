@@ -22,6 +22,10 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
           destinationAccountId: data.destinationAccountId,
           categoryId: data.categoryId,
           amount: data.amount,
+          destinationAmount:
+            data.destinationAmount ??
+            (data.type === 'TRANSFER' ? data.amount : null),
+          exchangeRate: data.exchangeRate ?? null,
           type: data.type as any,
           date: data.date ?? new Date(),
           note: data.note,
@@ -45,13 +49,14 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
           data: { balance: { decrement: data.amount } },
         });
       } else if (data.type === 'TRANSFER' && data.destinationAccountId) {
+        const destAmount = data.destinationAmount ?? data.amount;
         await tx.account.update({
           where: { id: data.accountId },
           data: { balance: { decrement: data.amount } },
         });
         await tx.account.update({
           where: { id: data.destinationAccountId },
-          data: { balance: { increment: data.amount } },
+          data: { balance: { increment: destAmount } },
         });
       }
 
@@ -99,13 +104,14 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
         existing.type === 'TRANSFER' &&
         existing.destinationAccountId
       ) {
+        const prevDestAmount = existing.destinationAmount ?? existing.amount;
         await tx.account.update({
           where: { id: existing.accountId },
           data: { balance: { increment: existing.amount } },
         });
         await tx.account.update({
           where: { id: existing.destinationAccountId },
-          data: { balance: { decrement: existing.amount } },
+          data: { balance: { decrement: prevDestAmount } },
         });
       }
 
@@ -121,6 +127,12 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
             categoryId: data.categoryId,
           }),
           ...(data.amount !== undefined && { amount: data.amount }),
+          ...(data.destinationAmount !== undefined && {
+            destinationAmount: data.destinationAmount,
+          }),
+          ...(data.exchangeRate !== undefined && {
+            exchangeRate: data.exchangeRate,
+          }),
           ...(data.type !== undefined && { type: data.type as any }),
           ...(data.date !== undefined && { date: data.date }),
           ...(data.note !== undefined && { note: data.note }),
@@ -154,13 +166,14 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
           data: { balance: { decrement: updated.amount } },
         });
       } else if (updated.type === 'TRANSFER' && updated.destinationAccountId) {
+        const nextDestAmount = updated.destinationAmount ?? updated.amount;
         await tx.account.update({
           where: { id: updated.accountId },
           data: { balance: { decrement: updated.amount } },
         });
         await tx.account.update({
           where: { id: updated.destinationAccountId },
-          data: { balance: { increment: updated.amount } },
+          data: { balance: { increment: nextDestAmount } },
         });
       }
 
@@ -191,13 +204,14 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
           existing.type === 'TRANSFER' &&
           existing.destinationAccountId
         ) {
+          const prevDestAmount = existing.destinationAmount ?? existing.amount;
           await tx.account.update({
             where: { id: existing.accountId },
             data: { balance: { increment: existing.amount } },
           });
           await tx.account.update({
             where: { id: existing.destinationAccountId },
-            data: { balance: { decrement: existing.amount } },
+            data: { balance: { decrement: prevDestAmount } },
           });
         }
 
@@ -218,6 +232,8 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
       destinationAccountId: raw.destinationAccountId,
       categoryId: raw.categoryId,
       amount: raw.amount,
+      destinationAmount: raw.destinationAmount,
+      exchangeRate: raw.exchangeRate,
       type: raw.type,
       date: raw.date,
       note: raw.note,

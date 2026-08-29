@@ -203,6 +203,8 @@ model Transaction {
   destinationAccountId String?
   categoryId           String?
   amount               Float
+  destinationAmount    Float?
+  exchangeRate         Float?
   type                 TransactionType @default(EXPENSE)
   date                 DateTime        @default(now())
   note                 String?

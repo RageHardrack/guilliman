@@ -267,3 +267,14 @@ model LoanPayment {
 
   @@map("loan_payments")
 }
+
+model ExchangeRate {
+  id        String   @id @default(uuid())
+  currency  String   @unique // e.g. 'PEN', 'VES'
+  rate      Float    // USD to Currency (e.g. 3.356 for PEN, 791.66 for VES)
+  source    String   // 'SUNAT', 'BCV', 'MANUAL'
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("exchange_rates")
+}

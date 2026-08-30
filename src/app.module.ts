@@ -19,6 +19,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
 import { CategoriesModule } from './categories/categories.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { PrismaModule } from './infrastructure/database/prisma/prisma.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { PrismaModule } from './infrastructure/database/prisma/prisma.module';
     GoalsModule,
     LoansModule,
     TaxModule,
+    ExchangeRatesModule,
     NotionModule,
     BlogModule,
     PortfolioModule,

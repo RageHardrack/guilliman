@@ -28,10 +28,4 @@ export class UpdateAccountDto {
     description: 'Saldo actual o ajustado',
   })
   balance?: number;
-
-  @ApiPropertyOptional({
-    example: 'PEN',
-    description: 'Código ISO de la moneda',
-  })
-  currency?: string;
 }

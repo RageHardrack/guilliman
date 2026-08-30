@@ -50,7 +50,7 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
 
   async update(
     id: string,
-    data: Partial<Omit<CreateAccountData, 'userId'>>,
+    data: Partial<Omit<CreateAccountData, 'userId' | 'currency'>>,
   ): Promise<Account> {
     const raw = await this.prisma.account.update({
       where: { id },
@@ -58,7 +58,6 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.type !== undefined && { type: data.type as any }),
         ...(data.balance !== undefined && { balance: data.balance }),
-        ...(data.currency !== undefined && { currency: data.currency }),
       },
     });
     return this.mapToDomain(raw);

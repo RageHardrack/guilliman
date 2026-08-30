@@ -4,6 +4,7 @@ import type {
 } from '../../transactions/domain/transaction.entity';
 
 export type CategoryType = 'INCOME' | 'EXPENSE';
+export type BudgetGroup = 'NEEDS' | 'WANTS' | 'SAVINGS' | 'UNASSIGNED';
 
 export interface CategoryProps {
   id: string;
@@ -15,6 +16,7 @@ export interface CategoryProps {
   parentId?: string | null;
   taxCategory?: TaxCategory;
   taxDeductionType?: TaxDeductionType;
+  budgetGroup?: BudgetGroup;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +51,9 @@ export class Category {
   get taxDeductionType(): TaxDeductionType {
     return this.props.taxDeductionType || 'NONE';
   }
+  get budgetGroup(): BudgetGroup {
+    return this.props.budgetGroup || 'UNASSIGNED';
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -57,6 +62,6 @@ export class Category {
   }
 
   toJSON(): CategoryProps {
-    return { ...this.props };
+    return { ...this.props, budgetGroup: this.budgetGroup };
   }
 }

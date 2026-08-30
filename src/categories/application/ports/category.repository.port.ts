@@ -1,4 +1,8 @@
-import { Category, CategoryType } from '../../domain/category.entity';
+import {
+  BudgetGroup,
+  Category,
+  CategoryType,
+} from '../../domain/category.entity';
 import type {
   TaxCategory,
   TaxDeductionType,
@@ -13,6 +17,7 @@ export interface CreateCategoryData {
   parentId?: string;
   taxCategory?: TaxCategory;
   taxDeductionType?: TaxDeductionType;
+  budgetGroup?: BudgetGroup;
 }
 
 export abstract class CategoryRepositoryPort {

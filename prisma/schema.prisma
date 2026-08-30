@@ -74,6 +74,13 @@ enum TaxDeductionType {
   DOMESTIC_WORKER
 }
 
+enum BudgetGroup {
+  NEEDS
+  WANTS
+  SAVINGS
+  UNASSIGNED
+}
+
 enum Role {
   ADMIN
   USER
@@ -147,6 +154,7 @@ model Category {
   parentId         String?
   taxCategory      TaxCategory      @default(NONE)
   taxDeductionType TaxDeductionType @default(NONE)
+  budgetGroup      BudgetGroup      @default(UNASSIGNED)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)

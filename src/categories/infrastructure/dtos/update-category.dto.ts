@@ -69,4 +69,11 @@ export class UpdateCategoryDto {
     | 'RENTAL'
     | 'PROFESSIONAL_SERVICE'
     | 'DOMESTIC_WORKER';
+
+  @ApiPropertyOptional({
+    enum: ['NEEDS', 'WANTS', 'SAVINGS', 'UNASSIGNED'],
+    example: 'NEEDS',
+    description: 'Grupo de la regla presupuestaria 50/30/20',
+  })
+  budgetGroup?: 'NEEDS' | 'WANTS' | 'SAVINGS' | 'UNASSIGNED';
 }

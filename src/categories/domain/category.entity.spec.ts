@@ -22,6 +22,24 @@ describe('Category Domain Entity', () => {
     expect(category.name).toBe('Supermercado');
     expect(category.type).toBe('EXPENSE');
     expect(category.parentId).toBe('cat-parent');
+    expect(category.budgetGroup).toBe('UNASSIGNED');
     expect(category.toJSON().icon).toBe('shopping-cart');
+    expect(category.toJSON().budgetGroup).toBe('UNASSIGNED');
+  });
+
+  it('should support custom budgetGroup (NEEDS, WANTS, SAVINGS)', () => {
+    const now = new Date();
+    const category = new Category({
+      id: 'cat-2',
+      userId: 'user-1',
+      name: 'Alquiler Vivienda',
+      type: 'EXPENSE',
+      budgetGroup: 'NEEDS',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(category.budgetGroup).toBe('NEEDS');
+    expect(category.toJSON().budgetGroup).toBe('NEEDS');
   });
 });

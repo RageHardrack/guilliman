@@ -24,6 +24,7 @@ export class PrismaCategoryRepository implements CategoryRepositoryPort {
         parentId: data.parentId,
         taxCategory: (data.taxCategory as any) || 'NONE',
         taxDeductionType: (data.taxDeductionType as any) || 'NONE',
+        budgetGroup: (data.budgetGroup as any) || 'UNASSIGNED',
       },
     });
     return this.mapToDomain(raw);
@@ -60,6 +61,9 @@ export class PrismaCategoryRepository implements CategoryRepositoryPort {
         ...(data.taxDeductionType !== undefined && {
           taxDeductionType: data.taxDeductionType as any,
         }),
+        ...(data.budgetGroup !== undefined && {
+          budgetGroup: data.budgetGroup as any,
+        }),
       },
     });
     return this.mapToDomain(raw);
@@ -85,6 +89,7 @@ export class PrismaCategoryRepository implements CategoryRepositoryPort {
       parentId: raw.parentId,
       taxCategory: raw.taxCategory,
       taxDeductionType: raw.taxDeductionType,
+      budgetGroup: raw.budgetGroup as any,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

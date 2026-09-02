@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AppService } from './app.service';
+import { McpModule } from './mcp/mcp.module';
 import { TaxModule } from './tax/tax.module';
 import { AuthModule } from './auth/auth.module';
 import { BlogModule } from './blog/blog.module';
@@ -45,6 +46,7 @@ import { PrismaModule } from './infrastructure/database/prisma/prisma.module';
     PortfolioModule,
     AboutModule,
     LinksModule,
+    McpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

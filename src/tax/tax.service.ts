@@ -6,6 +6,14 @@ import {
   TaxDeductibleItem,
   TaxProjectionResult,
 } from './domain/tax-projection.entity';
+import {
+  DATINCORP_MONTHLY_ADVANCE_TAX,
+  DATINCORP_MONTHLY_GROSS,
+  INITIAL_TAX_CREDIT_2026,
+  RUC_LAST_DIGIT,
+  SUNAT_DUE_DATES_2026_DIGIT_3,
+  UIT_2026,
+} from './domain/tax-rules.constant';
 
 // Parámetros históricos de UIT por año fiscal en Perú
 export const UIT_ANNUAL_VALUES: Record<number, number> = {
@@ -13,6 +21,53 @@ export const UIT_ANNUAL_VALUES: Record<number, number> = {
   2025: 5350,
   2026: 5350, // Default proyectado
 };
+
+export interface SimulationParams {
+  fiscalYear?: number;
+  additionalIncome4th?: number;
+  additionalExpenses3Uit?: number;
+}
+
+export interface MonthlyTaxChecklistResult {
+  period: string;
+  fiscalYear: number;
+  month: number;
+  rucLastDigit: number;
+  filingDueDate: string;
+  datincorpRheIssued: boolean;
+  datincorpExpectedGross: number;
+  calculatedMonthlyAdvanceTax: number;
+  totalMonthly4thIncome: number;
+  initialTaxCreditAvailable: number;
+  prepaymentsCompensatedYtd: number;
+  remainingTaxCredit: number;
+  cashPaymentDue: number;
+  checklistTasks: Array<{
+    id: string;
+    title: string;
+    completed: boolean;
+    description: string;
+  }>;
+}
+
+export interface FiscalSummaryResult {
+  fiscalYear: number;
+  grossIncome5thCategory: number;
+  grossIncome4thCategory: number;
+  deductionLegal4th20pct: number;
+  netIncomeWorkTotal: number;
+  deductionFixed7Uit: number;
+  deductionAdditional3UitAccumulated: number;
+  deductionAdditional3UitLimit: number;
+  taxableNetIncome: number;
+  estimatedTaxDetermined: number;
+  withholdings5thYtd: number;
+  withholdings4thYtd: number;
+  prepayments4thCompensated: number;
+  initialTaxCredit: number;
+  remainingTaxCredit: number;
+  projectedBalanceDjAnnual: number;
+}
 
 @Injectable()
 export class TaxService {
@@ -107,7 +162,7 @@ export class TaxService {
     userId: string,
     year: number,
   ): Promise<TaxProjectionResult> {
-    const uitValue = UIT_ANNUAL_VALUES[year] || 5350;
+    const uitValue = UIT_ANNUAL_VALUES[year] || UIT_2026;
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31, 23, 59, 59);
 
@@ -173,11 +228,6 @@ export class TaxService {
     const netTaxableIncome = Math.max(0, totalNetWorkIncome - totalDeductions);
 
     // 7. Escala Progresiva Acumulativa (SUNAT)
-    // Tramo 1: Hasta 5 UIT -> 8%
-    // Tramo 2: > 5 UIT hasta 20 UIT -> 14%
-    // Tramo 3: > 20 UIT hasta 35 UIT -> 17%
-    // Tramo 4: > 35 UIT hasta 45 UIT -> 20%
-    // Tramo 5: > 45 UIT -> 30%
     const uit5 = 5 * uitValue;
     const uit20 = 20 * uitValue;
     const uit35 = 35 * uitValue;
@@ -228,7 +278,6 @@ export class TaxService {
 
     let remainingTaxable = netTaxableIncome;
 
-    // Tramo 1 (hasta 5 UIT)
     if (remainingTaxable > 0) {
       const taxable = Math.min(remainingTaxable, uit5);
       brackets[0].taxableAmount = taxable;
@@ -236,7 +285,6 @@ export class TaxService {
       remainingTaxable -= taxable;
     }
 
-    // Tramo 2 (de 5 a 20 UIT = 15 UIT)
     if (remainingTaxable > 0) {
       const bracket2Capacity = uit20 - uit5;
       const taxable = Math.min(remainingTaxable, bracket2Capacity);
@@ -245,7 +293,6 @@ export class TaxService {
       remainingTaxable -= taxable;
     }
 
-    // Tramo 3 (de 20 a 35 UIT = 15 UIT)
     if (remainingTaxable > 0) {
       const bracket3Capacity = uit35 - uit20;
       const taxable = Math.min(remainingTaxable, bracket3Capacity);
@@ -254,7 +301,6 @@ export class TaxService {
       remainingTaxable -= taxable;
     }
 
-    // Tramo 4 (de 35 a 45 UIT = 10 UIT)
     if (remainingTaxable > 0) {
       const bracket4Capacity = uit45 - uit35;
       const taxable = Math.min(remainingTaxable, bracket4Capacity);
@@ -263,7 +309,6 @@ export class TaxService {
       remainingTaxable -= taxable;
     }
 
-    // Tramo 5 (más de 45 UIT)
     if (remainingTaxable > 0) {
       const taxable = remainingTaxable;
       brackets[4].taxableAmount = taxable;
@@ -313,6 +358,258 @@ export class TaxService {
       totalWithholdings: Math.round(totalWithholdings * 100) / 100,
       estimatedTaxDue,
       status,
+    };
+  }
+
+  async getMonthlyChecklist(
+    userId: string,
+    period: string,
+  ): Promise<MonthlyTaxChecklistResult> {
+    const [yearStr, monthStr] = period.split('-');
+    const fiscalYear = parseInt(yearStr, 10) || 2026;
+    const month = parseInt(monthStr, 10) || 1;
+
+    const startOfMonth = new Date(fiscalYear, month - 1, 1);
+    const endOfMonth = new Date(fiscalYear, month, 0, 23, 59, 59);
+
+    // Get 4th category transactions for this specific month
+    const monthlyTxs = await this.prisma.transaction.findMany({
+      where: {
+        userId,
+        type: 'INCOME',
+        taxCategory: 'FOURTH_CATEGORY_INCOME',
+        date: { gte: startOfMonth, lte: endOfMonth },
+      },
+    });
+
+    const totalMonthly4thIncome = monthlyTxs.reduce(
+      (sum, tx) => sum + tx.amount,
+      0,
+    );
+
+    // Check if Datincorp RHE is registered
+    const datincorpTx = monthlyTxs.find((tx) =>
+      (tx.note || '').toLowerCase().includes('datincorp') ||
+      tx.amount === DATINCORP_MONTHLY_GROSS,
+    );
+    const datincorpRheIssued = !!datincorpTx;
+
+    // Calculate monthly advance payment (8%)
+    const calculatedMonthlyAdvanceTax =
+      Math.round(totalMonthly4thIncome * 0.08 * 100) / 100 ||
+      (datincorpRheIssued ? DATINCORP_MONTHLY_ADVANCE_TAX : 0);
+
+    // Calculate compensated prepayments in previous months of the same year
+    const startOfYear = new Date(fiscalYear, 0, 1);
+    const previousMonthEnd = new Date(fiscalYear, month - 1, 0, 23, 59, 59);
+
+    let prepaymentsCompensatedYtd = 0;
+    if (month > 1) {
+      const priorTxs = await this.prisma.transaction.findMany({
+        where: {
+          userId,
+          type: 'INCOME',
+          taxCategory: 'FOURTH_CATEGORY_INCOME',
+          date: { gte: startOfYear, lte: previousMonthEnd },
+        },
+      });
+      const prior4thTotal = priorTxs.reduce((sum, tx) => sum + tx.amount, 0);
+      prepaymentsCompensatedYtd = Math.round(prior4thTotal * 0.08 * 100) / 100;
+    }
+
+    const initialTaxCreditAvailable = INITIAL_TAX_CREDIT_2026;
+    const remainingTaxCredit = Math.max(
+      0,
+      Math.round(
+        (initialTaxCreditAvailable -
+          prepaymentsCompensatedYtd -
+          calculatedMonthlyAdvanceTax) *
+          100,
+      ) / 100,
+    );
+
+    const cashPaymentDue =
+      calculatedMonthlyAdvanceTax >
+      initialTaxCreditAvailable - prepaymentsCompensatedYtd
+        ? Math.round(
+            (calculatedMonthlyAdvanceTax -
+              (initialTaxCreditAvailable - prepaymentsCompensatedYtd)) *
+              100,
+          ) / 100
+        : 0;
+
+    const filingDueDate =
+      SUNAT_DUE_DATES_2026_DIGIT_3[period] || `${fiscalYear}-${monthStr}-20`;
+
+    const checklistTasks = [
+      {
+        id: 'RHE_ISSUANCE',
+        title: 'Emisión de RHE Datincorp',
+        completed: datincorpRheIssued,
+        description: `Emitir RHE electrónico por S/ ${DATINCORP_MONTHLY_GROSS.toFixed(2)} sin retención.`,
+      },
+      {
+        id: 'FV_616_DECLARATION',
+        title: 'Declaración mensual FV 616 (Pago a Cuenta 8%)',
+        completed: false,
+        description: `Declarar pago a cuenta por S/ ${calculatedMonthlyAdvanceTax.toFixed(2)} antes del vencimiento (${filingDueDate}).`,
+      },
+      {
+        id: 'TAX_CREDIT_COMPENSATION',
+        title: 'Compensación con Saldo a Favor',
+        completed: cashPaymentDue === 0,
+        description: `Compensar S/ ${calculatedMonthlyAdvanceTax.toFixed(2)} contra saldo a favor disponible. Importe a pagar en efectivo: S/ ${cashPaymentDue.toFixed(2)}.`,
+      },
+    ];
+
+    return {
+      period,
+      fiscalYear,
+      month,
+      rucLastDigit: RUC_LAST_DIGIT,
+      filingDueDate,
+      datincorpRheIssued,
+      datincorpExpectedGross: DATINCORP_MONTHLY_GROSS,
+      calculatedMonthlyAdvanceTax,
+      totalMonthly4thIncome: Math.round(totalMonthly4thIncome * 100) / 100,
+      initialTaxCreditAvailable,
+      prepaymentsCompensatedYtd,
+      remainingTaxCredit,
+      cashPaymentDue,
+      checklistTasks,
+    };
+  }
+
+  async simulateTaxScenario(
+    userId: string,
+    params: SimulationParams,
+  ) {
+    const fiscalYear = params.fiscalYear || 2026;
+    const additionalIncome4th = params.additionalIncome4th || 0;
+    const additionalExpenses3Uit = params.additionalExpenses3Uit || 0;
+
+    const baseline = await this.calculateProjection(userId, fiscalYear);
+
+    // Compute simulated projection
+    const uitValue = UIT_ANNUAL_VALUES[fiscalYear] || UIT_2026;
+    const simGrossFourth = baseline.grossFourthCategory + additionalIncome4th;
+    const max24Uit = 24 * uitValue;
+    const simFourthDeduction20 = Math.min(simGrossFourth * 0.2, max24Uit);
+    const simNetFourth = Math.max(0, simGrossFourth - simFourthDeduction20);
+    const simTotalNetWork = simNetFourth + baseline.netFifthCategory;
+
+    // Apply simulated 3 UIT additional deductible items (using 15% standard or direct amount if already proportioned)
+    const simApplied3Uit = Math.min(
+      baseline.appliedDeductible3Uit + additionalExpenses3Uit * 0.15,
+      baseline.deductible3UitLimit,
+    );
+    const simTotalDeductions = baseline.fixedDeduction7Uit + simApplied3Uit;
+    const simTaxableNet = Math.max(0, simTotalNetWork - simTotalDeductions);
+
+    // Progressive scale calculation
+    const uit5 = 5 * uitValue;
+    const uit20 = 20 * uitValue;
+    const uit35 = 35 * uitValue;
+    const uit45 = 45 * uitValue;
+
+    let simTax = 0;
+    let remaining = simTaxableNet;
+
+    if (remaining > 0) {
+      const t = Math.min(remaining, uit5);
+      simTax += t * 0.08;
+      remaining -= t;
+    }
+    if (remaining > 0) {
+      const t = Math.min(remaining, uit20 - uit5);
+      simTax += t * 0.14;
+      remaining -= t;
+    }
+    if (remaining > 0) {
+      const t = Math.min(remaining, uit35 - uit20);
+      simTax += t * 0.17;
+      remaining -= t;
+    }
+    if (remaining > 0) {
+      const t = Math.min(remaining, uit45 - uit35);
+      simTax += t * 0.2;
+      remaining -= t;
+    }
+    if (remaining > 0) {
+      simTax += remaining * 0.3;
+      remaining = 0;
+    }
+
+    const simCalculatedTax = Math.round(simTax * 100) / 100;
+    const simTaxDue =
+      Math.round((simCalculatedTax - baseline.totalWithholdings) * 100) / 100;
+
+    return {
+      fiscalYear,
+      baseline: {
+        totalGrossIncome: baseline.totalGrossIncome,
+        netTaxableIncome: baseline.netTaxableIncome,
+        totalCalculatedTax: baseline.totalCalculatedTax,
+        estimatedTaxDue: baseline.estimatedTaxDue,
+      },
+      simulated: {
+        additionalIncome4th,
+        additionalExpenses3Uit,
+        totalGrossIncome: Math.round((baseline.totalGrossIncome + additionalIncome4th) * 100) / 100,
+        netTaxableIncome: Math.round(simTaxableNet * 100) / 100,
+        totalCalculatedTax: simCalculatedTax,
+        estimatedTaxDue: simTaxDue,
+      },
+      delta: {
+        taxableIncomeDifference:
+          Math.round((simTaxableNet - baseline.netTaxableIncome) * 100) / 100,
+        taxDueDifference:
+          Math.round((simTaxDue - baseline.estimatedTaxDue) * 100) / 100,
+      },
+    };
+  }
+
+  async getFiscalSummary(
+    userId: string,
+    year = 2026,
+  ): Promise<FiscalSummaryResult> {
+    const projection = await this.calculateProjection(userId, year);
+
+    // Calculate advance prepayments compensated
+    const prepayments4thCompensated =
+      Math.round(projection.grossFourthCategory * 0.08 * 100) / 100;
+    const initialTaxCredit = INITIAL_TAX_CREDIT_2026;
+    const remainingTaxCredit = Math.max(
+      0,
+      Math.round((initialTaxCredit - prepayments4thCompensated) * 100) / 100,
+    );
+
+    // Projected balance DJ Annual
+    const projectedBalanceDjAnnual =
+      Math.round(
+        (projection.totalCalculatedTax -
+          projection.fifthCategoryWithholdings -
+          prepayments4thCompensated) *
+          100,
+      ) / 100;
+
+    return {
+      fiscalYear: year,
+      grossIncome5thCategory: projection.grossFifthCategory,
+      grossIncome4thCategory: projection.grossFourthCategory,
+      deductionLegal4th20pct: projection.fourthCategoryDeduction20,
+      netIncomeWorkTotal: projection.totalNetWorkIncome,
+      deductionFixed7Uit: projection.fixedDeduction7Uit,
+      deductionAdditional3UitAccumulated: projection.appliedDeductible3Uit,
+      deductionAdditional3UitLimit: projection.deductible3UitLimit,
+      taxableNetIncome: projection.netTaxableIncome,
+      estimatedTaxDetermined: projection.totalCalculatedTax,
+      withholdings5thYtd: projection.fifthCategoryWithholdings,
+      withholdings4thYtd: projection.fourthCategoryWithholdings,
+      prepayments4thCompensated,
+      initialTaxCredit,
+      remainingTaxCredit,
+      projectedBalanceDjAnnual,
     };
   }
 }

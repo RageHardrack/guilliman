@@ -25,7 +25,6 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
     const userId = 'user-123';
     const year = 2026; // UIT = 5,350 -> 7 UIT = 37,450
 
-    // En calculateProjection: primero busca las transacciones generales (line 104), luego llama a getDeductibleItems (line 147)
     (prisma.transaction.findMany as any)
       .mockResolvedValueOnce([
         {
@@ -63,7 +62,6 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
     const userId = 'user-123';
     const year = 2026;
 
-    // Simular un gasto de restaurante de S/ 1,000 (15% = S/ 150) y alquiler de S/ 2,000 (30% = S/ 600)
     (prisma.transaction.findMany as any).mockResolvedValueOnce([
       {
         id: 'tx-ded-1',
@@ -88,5 +86,64 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
     expect(deductibles.length).toBe(2);
     expect(deductibles[0].deductibleAmount).toBe(150);
     expect(deductibles[1].deductibleAmount).toBe(600);
+  });
+
+  it('genera checklist fiscal mensual con cálculo del 8% de pago a cuenta y saldo a favor', async () => {
+    const userId = 'user-123';
+    const period = '2026-09';
+
+    (prisma.transaction.findMany as any)
+      .mockResolvedValueOnce([
+        {
+          id: 'tx-rhe-sep',
+          type: 'INCOME',
+          amount: 4080,
+          taxCategory: 'FOURTH_CATEGORY_INCOME',
+          note: 'RHE Datincorp Servicios Septiembre',
+        },
+      ])
+      .mockResolvedValueOnce([
+        // Enero a Agosto (8 meses anteriores * 4080 = 32640 * 0.08 = 2611.20)
+        {
+          id: 'tx-prior',
+          type: 'INCOME',
+          amount: 32640,
+          taxCategory: 'FOURTH_CATEGORY_INCOME',
+        },
+      ]);
+
+    const checklist = await service.getMonthlyChecklist(userId, period);
+
+    expect(checklist.period).toBe('2026-09');
+    expect(checklist.datincorpRheIssued).toBe(true);
+    expect(checklist.calculatedMonthlyAdvanceTax).toBe(326.4);
+    expect(checklist.rucLastDigit).toBe(3);
+    expect(checklist.checklistTasks.length).toBe(3);
+  });
+
+  it('simula escenarios tributarios ante ingresos adicionales en 4ta categoría', async () => {
+    const userId = 'user-123';
+
+    (prisma.transaction.findMany as any)
+      .mockResolvedValueOnce([
+        {
+          id: 'tx-1',
+          type: 'INCOME',
+          amount: 40000,
+          taxCategory: 'FOURTH_CATEGORY_INCOME',
+          taxWithholdingAmount: 3200,
+        },
+      ])
+      .mockResolvedValueOnce([]); // 0 deducibles
+
+    const simulation = await service.simulateTaxScenario(userId, {
+      fiscalYear: 2026,
+      additionalIncome4th: 10000,
+      additionalExpenses3Uit: 0,
+    });
+
+    expect(simulation.baseline.totalGrossIncome).toBe(40000);
+    expect(simulation.simulated.totalGrossIncome).toBe(50000);
+    expect(simulation.delta.taxableIncomeDifference).toBeGreaterThan(0);
   });
 });

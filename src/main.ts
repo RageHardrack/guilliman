@@ -12,7 +12,7 @@ async function bootstrap() {
   const fastifyInstance = fastifyAdapter.getInstance();
 
   fastifyInstance.addContentTypeParser(
-    ['text/plain', 'text/html', 'application/x-www-form-urlencoded'],
+    ['text/plain', 'text/html'],
     { parseAs: 'string' },
     (_req, body, done) => {
       done(null, body);

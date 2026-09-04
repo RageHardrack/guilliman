@@ -1,8 +1,10 @@
+export type WatchtowerStatus = 'success' | 'failed' | 'warning' | (string & {});
+
 export interface WatchtowerWebhookPayload {
   title?: string;
   message?: string;
   containers?: string[];
-  status?: 'success' | 'failed' | 'warning' | string;
+  status?: WatchtowerStatus;
   host?: string;
   timestamp?: string;
   [key: string]: any;

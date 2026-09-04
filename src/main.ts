@@ -8,14 +8,17 @@ import {
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const fastifyAdapter = new FastifyAdapter();
-  const fastifyInstance = fastifyAdapter.getInstance();
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter(),
+  );
 
-  fastifyInstance.removeAllContentTypeParsers();
-  fastifyInstance.addContentTypeParser(
-    '*',
+  const fastify = app.getHttpAdapter().getInstance();
+
+  fastify.addContentTypeParser(
+    'application/json',
     { parseAs: 'string' },
-    (_req, body, done) => {
+    (_req: any, body: string, done: any) => {
       if (!body || typeof body !== 'string' || !body.trim()) {
         done(null, {});
         return;
@@ -29,10 +32,14 @@ async function bootstrap() {
     },
   );
 
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    fastifyAdapter,
+  fastify.addContentTypeParser(
+    ['text/plain', 'text/html'],
+    { parseAs: 'string' },
+    (_req: any, body: string, done: any) => {
+      done(null, body);
+    },
   );
+
   app.enableCors({
     origin: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],

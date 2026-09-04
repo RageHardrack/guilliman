@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { WatchtowerEmbedBuilder } from './watchtower-embed.builder';
 import { DISCORD_EMBED_COLORS } from '../types/discord.types';
+import { WatchtowerEmbedBuilder } from './watchtower-embed.builder';
 
 describe('WatchtowerEmbedBuilder', () => {
   it('builds a successful deployment embed from structured payload', () => {
@@ -46,7 +46,8 @@ describe('WatchtowerEmbedBuilder', () => {
 
   it('parses containers from plain message text if containers array is not provided', () => {
     const payload = {
-      message: 'Found new image for lascar-tique. Recreating container lascar-tique...',
+      message:
+        'Found new image for lascar-tique. Recreating container lascar-tique...',
     };
 
     const embed = WatchtowerEmbedBuilder.build(payload);

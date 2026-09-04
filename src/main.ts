@@ -8,36 +8,56 @@ import {
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter(),
-  );
+  const adapter = new FastifyAdapter();
 
-  const fastify = app.getHttpAdapter().getInstance();
-
-  fastify.addContentTypeParser(
+  adapter.useBodyParser(
     'application/json',
-    { parseAs: 'string' },
-    (_req: any, body: string, done: any) => {
-      if (!body || typeof body !== 'string' || !body.trim()) {
+    false,
+    {},
+    (_req: any, body: any, done: any) => {
+      const text = Buffer.isBuffer(body)
+        ? body.toString('utf-8')
+        : String(body ?? '');
+      if (!text.trim()) {
         done(null, {});
         return;
       }
       try {
-        const parsed = JSON.parse(body);
+        const parsed = JSON.parse(text);
         done(null, parsed);
       } catch {
-        done(null, body);
+        done(null, text);
       }
     },
   );
 
-  fastify.addContentTypeParser(
-    ['text/plain', 'text/html'],
-    { parseAs: 'string' },
-    (_req: any, body: string, done: any) => {
-      done(null, body);
+  adapter.useBodyParser(
+    'text/plain',
+    false,
+    {},
+    (_req: any, body: any, done: any) => {
+      const text = Buffer.isBuffer(body)
+        ? body.toString('utf-8')
+        : String(body ?? '');
+      done(null, text);
     },
+  );
+
+  adapter.useBodyParser(
+    'text/html',
+    false,
+    {},
+    (_req: any, body: any, done: any) => {
+      const text = Buffer.isBuffer(body)
+        ? body.toString('utf-8')
+        : String(body ?? '');
+      done(null, text);
+    },
+  );
+
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    adapter,
   );
 
   app.enableCors({

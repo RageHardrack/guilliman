@@ -51,9 +51,7 @@ export class WatchtowerWebhookController {
 
     try {
       const normalizedPayload: WatchtowerWebhookPayload =
-        typeof payload === 'string'
-          ? { message: payload }
-          : payload || {};
+        typeof payload === 'string' ? { message: payload } : payload || {};
 
       const embed = WatchtowerEmbedBuilder.build(normalizedPayload);
       const sent = await this.discordNotificationService.sendEmbed({

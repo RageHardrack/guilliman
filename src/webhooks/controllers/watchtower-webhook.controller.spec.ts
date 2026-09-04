@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { WatchtowerWebhookController } from './watchtower-webhook.controller';
@@ -63,7 +64,7 @@ describe('WatchtowerWebhookController', () => {
   it('handles string/plain text body seamlessly', async () => {
     const payload = 'Updated container lascar-blog to latest';
 
-    const result = await controller.handleWatchtowerWebhook(payload as any);
+    const result = await controller.handleWatchtowerWebhook(payload);
 
     expect(result).toEqual({ status: 'processed' });
     expect(mockDiscordNotificationService.sendEmbed).toHaveBeenCalled();

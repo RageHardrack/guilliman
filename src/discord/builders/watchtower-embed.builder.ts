@@ -30,7 +30,9 @@ export class WatchtowerEmbedBuilder {
         : '`General / Auto-Update`';
 
     const cleanMessage = this.truncate(
-      payload.message || payload.title || 'Actualización de contenedores completada con éxito.',
+      payload.message ||
+        payload.title ||
+        'Actualización de contenedores completada con éxito.',
       500,
     );
 
@@ -38,7 +40,9 @@ export class WatchtowerEmbedBuilder {
       .setColor(color)
       .setTitle(title)
       .setDescription(cleanMessage)
-      .setTimestamp(payload.timestamp ? new Date(payload.timestamp) : new Date())
+      .setTimestamp(
+        payload.timestamp ? new Date(payload.timestamp) : new Date(),
+      )
       .setFooter({ text: 'Lerthalanthia • CI/CD & Deployment Guardian' });
 
     embed.addFields([

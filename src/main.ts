@@ -11,11 +11,21 @@ async function bootstrap() {
   const fastifyAdapter = new FastifyAdapter();
   const fastifyInstance = fastifyAdapter.getInstance();
 
+  fastifyInstance.removeAllContentTypeParsers();
   fastifyInstance.addContentTypeParser(
-    ['text/plain', 'text/html'],
+    '*',
     { parseAs: 'string' },
     (_req, body, done) => {
-      done(null, body);
+      if (!body || typeof body !== 'string' || !body.trim()) {
+        done(null, {});
+        return;
+      }
+      try {
+        const parsed = JSON.parse(body);
+        done(null, parsed);
+      } catch {
+        done(null, body);
+      }
     },
   );
 

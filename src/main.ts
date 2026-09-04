@@ -8,9 +8,20 @@ import {
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  const fastifyAdapter = new FastifyAdapter();
+  const fastifyInstance = fastifyAdapter.getInstance();
+
+  fastifyInstance.addContentTypeParser(
+    ['text/plain', 'text/html', 'application/x-www-form-urlencoded'],
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      done(null, body);
+    },
+  );
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    fastifyAdapter,
   );
   app.enableCors({
     origin: true,

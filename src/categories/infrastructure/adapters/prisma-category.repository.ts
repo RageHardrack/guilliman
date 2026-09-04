@@ -89,7 +89,7 @@ export class PrismaCategoryRepository implements CategoryRepositoryPort {
       parentId: raw.parentId,
       taxCategory: raw.taxCategory,
       taxDeductionType: raw.taxDeductionType,
-      budgetGroup: raw.budgetGroup as any,
+      budgetGroup: raw.budgetGroup,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

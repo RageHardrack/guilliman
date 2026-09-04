@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+
+import { ExchangeRateSource } from '../../domain/exchange-rate.entity';
 import {
   FetchedRateResult,
   OfficialRateProviderPort,
 } from '../../application/ports/official-rate-provider.port';
-import { ExchangeRateSource } from '../../domain/exchange-rate.entity';
 
 @Injectable()
 export class SunatRateProvider implements OfficialRateProviderPort {
@@ -32,7 +33,9 @@ export class SunatRateProvider implements OfficialRateProviderPort {
         }
       }
     } catch (err) {
-      this.logger.warn(`Primary SUNAT endpoint failed: ${(err as Error).message}. Attempting fallback...`);
+      this.logger.warn(
+        `Primary SUNAT endpoint failed: ${(err as Error).message}. Attempting fallback...`,
+      );
     }
 
     // 2. Secondary Fallback Endpoint: open.er-api.com
@@ -55,9 +58,13 @@ export class SunatRateProvider implements OfficialRateProviderPort {
         }
       }
     } catch (err) {
-      this.logger.error(`Secondary SUNAT fallback failed: ${(err as Error).message}`);
+      this.logger.error(
+        `Secondary SUNAT fallback failed: ${(err as Error).message}`,
+      );
     }
 
-    throw new Error('All SUNAT exchange rate providers failed to return a valid rate.');
+    throw new Error(
+      'All SUNAT exchange rate providers failed to return a valid rate.',
+    );
   }
 }

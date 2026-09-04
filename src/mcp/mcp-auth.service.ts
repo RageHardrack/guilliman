@@ -4,8 +4,10 @@ import {
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../infrastructure/database/prisma/prisma.service';
+
 import { User, Role } from '@prisma/client';
+
+import { PrismaService } from '../infrastructure/database/prisma/prisma.service';
 
 @Injectable()
 export class McpAuthService {

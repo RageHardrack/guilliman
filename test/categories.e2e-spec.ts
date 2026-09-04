@@ -3,6 +3,7 @@ import {
   NestFastifyApplication,
   FastifyAdapter,
 } from '@nestjs/platform-fastify';
+
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/infrastructure/database/prisma/prisma.service';
 
@@ -31,7 +32,7 @@ describe('CategoriesController (e2e)', () => {
       user = await prisma.user.create({
         data: {
           email: 'test-e2e-categories@lascar.dev',
-          passwordHash: 'hashed_password_placeholder',
+          password: 'hashed_password_placeholder',
           name: 'E2E Test User',
           role: 'ADMIN',
         },
@@ -77,7 +78,9 @@ describe('CategoriesController (e2e)', () => {
     expect(listRes.statusCode).toBe(200);
     const categories = JSON.parse(listRes.payload);
     expect(Array.isArray(categories)).toBe(true);
-    const foundInList = categories.find((c: { id: string }) => c.id === categoryId);
+    const foundInList = categories.find(
+      (c: { id: string }) => c.id === categoryId,
+    );
     expect(foundInList).toBeDefined();
     expect(foundInList.budgetGroup).toBe('NEEDS');
 

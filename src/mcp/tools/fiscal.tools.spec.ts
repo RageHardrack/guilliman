@@ -1,7 +1,8 @@
+import { Role, User } from '@prisma/client';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+
 import { FiscalTools } from './fiscal.tools';
 import { TaxService } from '../../tax/tax.service';
-import { Role, User } from '@prisma/client';
 
 describe('FiscalTools', () => {
   let tools: FiscalTools;

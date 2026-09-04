@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { GetExchangeRatesUseCase } from './get-exchange-rates.use-case';
+
 import { ExchangeRate } from '../../domain/exchange-rate.entity';
+import { GetExchangeRatesUseCase } from './get-exchange-rates.use-case';
 import { ExchangeRateRepositoryPort } from '../ports/exchange-rate.repository.port';
 
 describe('GetExchangeRatesUseCase', () => {

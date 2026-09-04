@@ -1,3 +1,4 @@
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   Controller,
   Get,
@@ -9,14 +10,15 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+
+import { Role } from '@prisma/client';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import { McpServerService } from '../mcp-server.service';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { RolesGuard } from '../../auth/roles.guard';
+
 import { Roles } from '../../auth/roles.decorator';
-import { Role } from '@prisma/client';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { RolesGuard } from '../../auth/roles.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { McpServerService } from '../mcp-server.service';
 
 @ApiTags('MCP')
 @ApiBearerAuth()
@@ -38,10 +40,7 @@ export class McpSseController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: false }) reply: FastifyReply,
   ) {
-    const transport = new SSEServerTransport(
-      '/api/v1/mcp/messages',
-      reply.raw,
-    );
+    const transport = new SSEServerTransport('/api/v1/mcp/messages', reply.raw);
 
     this.transports.set(transport.sessionId, transport);
 

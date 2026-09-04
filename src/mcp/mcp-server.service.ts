@@ -1,8 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { McpAuthService } from './mcp-auth.service';
+
 import { FiscalTools } from './tools/fiscal.tools';
+import { McpAuthService } from './mcp-auth.service';
 import { FinanceTools } from './tools/finance.tools';
 import {
   CreateTransactionSchema,

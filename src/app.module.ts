@@ -15,7 +15,9 @@ import { LoansModule } from './loans/loans.module';
 import { UsersModule } from './users/users.module';
 import { NotionModule } from './notion/notion.module';
 import { BudgetsModule } from './budgets/budgets.module';
+import { DiscordModule } from './discord/discord.module';
 import { AccountsModule } from './accounts/accounts.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { CategoriesModule } from './categories/categories.module';
 import { TransactionsModule } from './transactions/transactions.module';
@@ -47,6 +49,8 @@ import { PrismaModule } from './infrastructure/database/prisma/prisma.module';
     AboutModule,
     LinksModule,
     McpModule,
+    DiscordModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

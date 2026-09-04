@@ -1,10 +1,8 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { PrismaService } from '../../infrastructure/database/prisma/prisma.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
+
 import { User, TaxCategory, TaxDeductionType } from '@prisma/client';
+
+import { PrismaService } from '../../infrastructure/database/prisma/prisma.service';
 
 @Injectable()
 export class FinanceTools {
@@ -191,7 +189,8 @@ export class FinanceTools {
         if (tx.amount <= 35 && group !== 'NEEDS') {
           antExpenses.push({
             id: tx.id,
-            description: tx.note || tx.category?.name || 'Gasto no categorizado',
+            description:
+              tx.note || tx.category?.name || 'Gasto no categorizado',
             amount: tx.amount,
             category: tx.category?.name,
             date: tx.date,
@@ -441,7 +440,8 @@ export class FinanceTools {
           type: 'text' as const,
           text: JSON.stringify(
             {
-              message: 'Pago de deuda registrado con consistencia transaccional.',
+              message:
+                'Pago de deuda registrado con consistencia transaccional.',
               loan_id: loan.id,
               person_name: loan.personName,
               payment_id: result.payment.id,

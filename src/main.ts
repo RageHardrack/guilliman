@@ -29,6 +29,7 @@ async function bootstrap() {
     .addTag('Categories', 'Categorías de ingresos y gastos')
     .addTag('Transactions', 'Registro de movimientos financieros')
     .addTag('Blog', 'Artículos y publicaciones del blog')
+    .addTag('Webhooks', 'Webhooks de integración externa (GitHub, etc.)')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

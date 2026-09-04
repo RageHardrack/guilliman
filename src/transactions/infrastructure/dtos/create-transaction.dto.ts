@@ -35,7 +35,8 @@ export class CreateTransactionDto {
 
   @ApiPropertyOptional({
     example: 172.5,
-    description: 'Monto recibido en la cuenta destino (transferencias multimoneda)',
+    description:
+      'Monto recibido en la cuenta destino (transferencias multimoneda)',
   })
   destinationAmount?: number;
 

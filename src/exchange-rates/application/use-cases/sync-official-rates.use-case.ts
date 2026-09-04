@@ -1,13 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+
 import { ExchangeRate } from '../../domain/exchange-rate.entity';
-import {
-  EXCHANGE_RATE_REPOSITORY,
-  type ExchangeRateRepositoryPort,
-} from '../ports/exchange-rate.repository.port';
 import {
   OFFICIAL_RATE_PROVIDERS,
   type OfficialRateProviderPort,
 } from '../ports/official-rate-provider.port';
+import {
+  EXCHANGE_RATE_REPOSITORY,
+  type ExchangeRateRepositoryPort,
+} from '../ports/exchange-rate.repository.port';
 
 export interface SyncRatesResult {
   success: boolean;
@@ -28,7 +29,9 @@ export class SyncOfficialRatesUseCase {
   ) {}
 
   async execute(): Promise<SyncRatesResult> {
-    this.logger.log('Starting daily official exchange rates synchronization...');
+    this.logger.log(
+      'Starting daily official exchange rates synchronization...',
+    );
     const synced: { currency: string; rate: number; source: string }[] = [];
     const errors: { currency: string; error: string }[] = [];
 

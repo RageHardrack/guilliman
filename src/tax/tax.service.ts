@@ -388,9 +388,10 @@ export class TaxService {
     );
 
     // Check if Datincorp RHE is registered
-    const datincorpTx = monthlyTxs.find((tx) =>
-      (tx.note || '').toLowerCase().includes('datincorp') ||
-      tx.amount === DATINCORP_MONTHLY_GROSS,
+    const datincorpTx = monthlyTxs.find(
+      (tx) =>
+        (tx.note || '').toLowerCase().includes('datincorp') ||
+        tx.amount === DATINCORP_MONTHLY_GROSS,
     );
     const datincorpRheIssued = !!datincorpTx;
 
@@ -480,10 +481,7 @@ export class TaxService {
     };
   }
 
-  async simulateTaxScenario(
-    userId: string,
-    params: SimulationParams,
-  ) {
+  async simulateTaxScenario(userId: string, params: SimulationParams) {
     const fiscalYear = params.fiscalYear || 2026;
     const additionalIncome4th = params.additionalIncome4th || 0;
     const additionalExpenses3Uit = params.additionalExpenses3Uit || 0;
@@ -555,7 +553,9 @@ export class TaxService {
       simulated: {
         additionalIncome4th,
         additionalExpenses3Uit,
-        totalGrossIncome: Math.round((baseline.totalGrossIncome + additionalIncome4th) * 100) / 100,
+        totalGrossIncome:
+          Math.round((baseline.totalGrossIncome + additionalIncome4th) * 100) /
+          100,
         netTaxableIncome: Math.round(simTaxableNet * 100) / 100,
         totalCalculatedTax: simCalculatedTax,
         estimatedTaxDue: simTaxDue,

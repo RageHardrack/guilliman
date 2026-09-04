@@ -1,9 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { McpServerService } from './mcp-server.service';
-import { McpAuthService } from './mcp-auth.service';
-import { FiscalTools } from './tools/fiscal.tools';
-import { FinanceTools } from './tools/finance.tools';
 import { Role, User } from '@prisma/client';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+import { FiscalTools } from './tools/fiscal.tools';
+import { McpAuthService } from './mcp-auth.service';
+import { FinanceTools } from './tools/finance.tools';
+import { McpServerService } from './mcp-server.service';
 
 describe('McpServerService', () => {
   let service: McpServerService;

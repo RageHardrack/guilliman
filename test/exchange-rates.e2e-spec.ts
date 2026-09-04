@@ -1,11 +1,12 @@
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   NestFastifyApplication,
   FastifyAdapter,
 } from '@nestjs/platform-fastify';
+
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/infrastructure/database/prisma/prisma.service';
-import { JwtService } from '@nestjs/jwt';
 
 describe('ExchangeRatesController (e2e)', () => {
   let app: NestFastifyApplication;

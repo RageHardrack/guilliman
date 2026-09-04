@@ -1,8 +1,10 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
+
+import { Role } from '@prisma/client';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+
 import { McpAuthService } from './mcp-auth.service';
 import { PrismaService } from '../infrastructure/database/prisma/prisma.service';
-import { Role } from '@prisma/client';
 
 describe('McpAuthService (ADMIN Security Guard)', () => {
   let service: McpAuthService;

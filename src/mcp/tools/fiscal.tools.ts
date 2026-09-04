@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { TaxService } from '../../tax/tax.service';
+
 import { User } from '@prisma/client';
+
+import { TaxService } from '../../tax/tax.service';
 
 @Injectable()
 export class FiscalTools {

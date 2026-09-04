@@ -1,8 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { NotFoundException } from '@nestjs/common';
+
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
 import { McpSseController } from './mcp-sse.controller';
 import { McpServerService } from '../mcp-server.service';
-import type { FastifyReply, FastifyRequest } from 'fastify';
 
 describe('McpSseController', () => {
   let controller: McpSseController;

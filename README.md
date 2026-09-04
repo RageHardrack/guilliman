@@ -74,6 +74,33 @@ Cuando Guilliman se encuentre desplegado en el VPS:
 
 ---
 
+## 🔔 Integración de Discord Bot & GitHub Webhooks
+
+Guilliman incluye un módulo nativo de Discord Bot y receptor de Webhooks para notificaciones en tiempo real del estado de pipelines CI/CD (GitHub Actions):
+
+### Componentes Principales
+- **`DiscordClientService`**: Gestiona el ciclo de vida del cliente `discord.js`, conexión al Gateway, reconexión y degradación elegante si `DISCORD_BOT_TOKEN` no está configurado.
+- **`DiscordNotificationService`**: Envía mensajes y embeds formateados a canales específicos de Discord.
+- **`WorkflowEmbedBuilder`**: Construye embeds enriquecidos codificados por color (Verde = éxito, Rojo = fallo, Azul = en progreso, Naranja = timeout/alerta) con enlaces al repositorio, rama, commit truncado y duración.
+- **`GithubSignatureGuard`**: Valida firmas HMAC-SHA256 (`X-Hub-Signature-256`) en tiempo constante (`crypto.timingSafeEqual`).
+- **`GithubWebhookController`**: Endpoint `POST /api/v1/webhooks/github` que procesa eventos `workflow_run` y delega a Discord.
+
+### Variables de Entorno
+```env
+DISCORD_BOT_TOKEN="tu_discord_bot_token"
+DISCORD_NOTIFICATIONS_CHANNEL_ID="tu_canal_discord_id"
+GITHUB_WEBHOOK_SECRET="tu_github_webhook_secret"
+```
+
+### Configuración en GitHub Webhooks
+1. En el repositorio de GitHub, navegar a **Settings** -> **Webhooks** -> **Add webhook**.
+2. **Payload URL**: `https://api.tu-dominio.com/api/v1/webhooks/github`
+3. **Content type**: `application/json`
+4. **Secret**: La misma clave configurada en `GITHUB_WEBHOOK_SECRET`.
+5. **Events**: Seleccionar *Let me select individual events* y marcar **Workflow runs**.
+
+---
+
 ## 📖 Documentación Interactiva (Swagger / OpenAPI)
 
 Una vez iniciado el servidor, la documentación interactiva se encuentra disponible en:
@@ -99,6 +126,8 @@ src/
 ├── tax/                # Motor fiscal SUNAT (4ta/5ta categoría, UIT 2026, 3 UIT)
 ├── mcp/                # Servidor Model Context Protocol con Auth Guard ADMIN
 ├── notion/             # Integración con base de datos de contenidos Notion
+├── discord/            # Bot de Discord (Gateway client, embed builder, dispatching)
+├── webhooks/           # Webhooks de integración externa (GitHub CI/CD workflow notifications)
 ├── blog/               # Endpoints públicos para el Blog
 ├── portfolio/          # Proyectos y habilidades
 ├── links/              # Enlaces y redes

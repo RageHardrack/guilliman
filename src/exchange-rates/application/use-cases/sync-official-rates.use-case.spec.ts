@@ -1,15 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SyncOfficialRatesUseCase } from './sync-official-rates.use-case';
-import { ExchangeRateRepositoryPort } from '../ports/exchange-rate.repository.port';
-import { OfficialRateProviderPort } from '../ports/official-rate-provider.port';
+
 import { ExchangeRate } from '../../domain/exchange-rate.entity';
+import { SyncOfficialRatesUseCase } from './sync-official-rates.use-case';
+import { OfficialRateProviderPort } from '../ports/official-rate-provider.port';
+import { ExchangeRateRepositoryPort } from '../ports/exchange-rate.repository.port';
 
 describe('SyncOfficialRatesUseCase', () => {
   it('should fetch and upsert rates from all providers', async () => {
     const mockRepo: ExchangeRateRepositoryPort = {
       findAll: vi.fn(),
       findByCurrency: vi.fn(),
-      upsertRate: vi.fn().mockImplementation(async (entity: ExchangeRate) => entity),
+      upsertRate: vi
+        .fn()
+        .mockImplementation(async (entity: ExchangeRate) => entity),
     };
 
     const sunatProvider: OfficialRateProviderPort = {
@@ -32,7 +35,10 @@ describe('SyncOfficialRatesUseCase', () => {
       }),
     };
 
-    const useCase = new SyncOfficialRatesUseCase(mockRepo, [sunatProvider, bcvProvider]);
+    const useCase = new SyncOfficialRatesUseCase(mockRepo, [
+      sunatProvider,
+      bcvProvider,
+    ]);
     const result = await useCase.execute();
 
     expect(result.success).toBe(true);
@@ -48,7 +54,9 @@ describe('SyncOfficialRatesUseCase', () => {
     const mockRepo: ExchangeRateRepositoryPort = {
       findAll: vi.fn(),
       findByCurrency: vi.fn(),
-      upsertRate: vi.fn().mockImplementation(async (entity: ExchangeRate) => entity),
+      upsertRate: vi
+        .fn()
+        .mockImplementation(async (entity: ExchangeRate) => entity),
     };
 
     const sunatProvider: OfficialRateProviderPort = {
@@ -67,7 +75,10 @@ describe('SyncOfficialRatesUseCase', () => {
       }),
     };
 
-    const useCase = new SyncOfficialRatesUseCase(mockRepo, [sunatProvider, bcvProvider]);
+    const useCase = new SyncOfficialRatesUseCase(mockRepo, [
+      sunatProvider,
+      bcvProvider,
+    ]);
     const result = await useCase.execute();
 
     expect(result.success).toBe(false);

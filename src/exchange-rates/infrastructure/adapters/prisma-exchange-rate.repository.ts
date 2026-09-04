@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
+
 import { ExchangeRate } from '../../domain/exchange-rate.entity';
+import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { ExchangeRateRepositoryPort } from '../../application/ports/exchange-rate.repository.port';
 
 @Injectable()

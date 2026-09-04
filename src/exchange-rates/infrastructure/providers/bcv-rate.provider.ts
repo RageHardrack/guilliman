@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+
+import { ExchangeRateSource } from '../../domain/exchange-rate.entity';
 import {
   FetchedRateResult,
   OfficialRateProviderPort,
 } from '../../application/ports/official-rate-provider.port';
-import { ExchangeRateSource } from '../../domain/exchange-rate.entity';
 
 @Injectable()
 export class BcvRateProvider implements OfficialRateProviderPort {
@@ -20,10 +21,16 @@ export class BcvRateProvider implements OfficialRateProviderPort {
       });
 
       if (res.ok) {
-        const data = (await res.json()) as { promedio?: number; venta?: number; compra?: number };
+        const data = (await res.json()) as {
+          promedio?: number;
+          venta?: number;
+          compra?: number;
+        };
         const rate = data.promedio || data.venta || data.compra;
         if (rate && rate > 0) {
-          this.logger.log(`BCV Rate fetched successfully from DolarAPI: ${rate}`);
+          this.logger.log(
+            `BCV Rate fetched successfully from DolarAPI: ${rate}`,
+          );
           return {
             currency: this.currency,
             rate,
@@ -32,7 +39,9 @@ export class BcvRateProvider implements OfficialRateProviderPort {
         }
       }
     } catch (err) {
-      this.logger.warn(`Primary BCV endpoint failed: ${(err as Error).message}. Attempting fallback...`);
+      this.logger.warn(
+        `Primary BCV endpoint failed: ${(err as Error).message}. Attempting fallback...`,
+      );
     }
 
     // 2. Secondary Fallback Endpoint: pydolarve.org BCV
@@ -43,7 +52,9 @@ export class BcvRateProvider implements OfficialRateProviderPort {
       });
 
       if (res.ok) {
-        const data = (await res.json()) as { monitors?: { usd?: { price?: number } } };
+        const data = (await res.json()) as {
+          monitors?: { usd?: { price?: number } };
+        };
         const rate = data.monitors?.usd?.price;
         if (rate && rate > 0) {
           this.logger.log(`BCV Fallback Rate fetched: ${rate}`);
@@ -55,9 +66,13 @@ export class BcvRateProvider implements OfficialRateProviderPort {
         }
       }
     } catch (err) {
-      this.logger.error(`Secondary BCV fallback failed: ${(err as Error).message}`);
+      this.logger.error(
+        `Secondary BCV fallback failed: ${(err as Error).message}`,
+      );
     }
 
-    throw new Error('All BCV exchange rate providers failed to return a valid rate.');
+    throw new Error(
+      'All BCV exchange rate providers failed to return a valid rate.',
+    );
   }
 }

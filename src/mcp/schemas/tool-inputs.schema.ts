@@ -11,7 +11,10 @@ export const GetFiscalSummarySchema = {
 export const GetMonthlyTaxChecklistSchema = {
   period: z
     .string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Debe tener formato YYYY-MM (ej. 2026-09)')
+    .regex(
+      /^\d{4}-(0[1-9]|1[0-2])$/,
+      'Debe tener formato YYYY-MM (ej. 2026-09)',
+    )
     .describe("Período fiscal en formato YYYY-MM (ej. '2026-09')"),
 };
 
@@ -45,7 +48,10 @@ export const GetNetWorthAndLiquiditySchema = {
 export const GetBudgetAuditSchema = {
   period: z
     .string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Debe tener formato YYYY-MM (ej. 2026-09)')
+    .regex(
+      /^\d{4}-(0[1-9]|1[0-2])$/,
+      'Debe tener formato YYYY-MM (ej. 2026-09)',
+    )
     .describe("Período a auditar en formato YYYY-MM (ej. '2026-09')"),
 };
 
@@ -72,7 +78,9 @@ export const CreateTransactionSchema = {
     .describe("Nombre o etiqueta de la categoría (ej. 'Alimentación')"),
   description: z
     .string()
-    .describe("Descripción o concepto del movimiento (ej. 'Almuerzo en restaurante')"),
+    .describe(
+      "Descripción o concepto del movimiento (ej. 'Almuerzo en restaurante')",
+    ),
   is_deductible_3uit: z
     .boolean()
     .default(false)
@@ -101,17 +109,15 @@ export const RecordDebtPaymentSchema = {
   source_account_id: z
     .string()
     .uuid('Debe ser un UUID válido')
-    .describe('Cuenta origen bancaria o billetera de donde salen los fondos (OBLIGATORIA)'),
+    .describe(
+      'Cuenta origen bancaria o billetera de donde salen los fondos (OBLIGATORIA)',
+    ),
   target_debt_id: z
     .string()
     .uuid('Debe ser un UUID válido')
     .describe('Identificador del préstamo o tarjeta de crédito a pagar'),
-  amount: z
-    .number()
-    .positive('El monto del abono debe ser mayor a 0'),
-  currency: z
-    .enum(['USD', 'PEN', 'VES'])
-    .describe('Moneda del pago'),
+  amount: z.number().positive('El monto del abono debe ser mayor a 0'),
+  currency: z.enum(['USD', 'PEN', 'VES']).describe('Moneda del pago'),
   payment_date: z
     .string()
     .datetime({ offset: true })

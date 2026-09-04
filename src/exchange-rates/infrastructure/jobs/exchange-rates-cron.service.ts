@@ -1,11 +1,12 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+
 import { SyncOfficialRatesUseCase } from '../../application/use-cases/sync-official-rates.use-case';
 import {
   EXCHANGE_RATE_REPOSITORY,
   type ExchangeRateRepositoryPort,
 } from '../../application/ports/exchange-rate.repository.port';
-import { Inject } from '@nestjs/common';
 
 @Injectable()
 export class ExchangeRatesCronService implements OnApplicationBootstrap {
@@ -22,11 +23,15 @@ export class ExchangeRatesCronService implements OnApplicationBootstrap {
     try {
       const existing = await this.repository.findAll();
       if (existing.length === 0) {
-        this.logger.log('No exchange rates found in database. Running initial bootstrap sync...');
+        this.logger.log(
+          'No exchange rates found in database. Running initial bootstrap sync...',
+        );
         await this.syncRatesUseCase.execute();
       }
     } catch (err) {
-      this.logger.warn(`Initial bootstrap sync failed: ${(err as Error).message}`);
+      this.logger.warn(
+        `Initial bootstrap sync failed: ${(err as Error).message}`,
+      );
     }
   }
 
@@ -36,7 +41,9 @@ export class ExchangeRatesCronService implements OnApplicationBootstrap {
     timeZone: 'America/Caracas',
   })
   async handleDailyCaracas8pmSync() {
-    this.logger.log('Cron triggered: Syncing official exchange rates at 8:00 PM Caracas time');
+    this.logger.log(
+      'Cron triggered: Syncing official exchange rates at 8:00 PM Caracas time',
+    );
     await this.syncRatesUseCase.execute();
   }
 }

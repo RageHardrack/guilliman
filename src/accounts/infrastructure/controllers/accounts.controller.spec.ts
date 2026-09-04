@@ -28,7 +28,16 @@ describe('AccountsController - Reconcile and Balance Adjustments', () => {
       update: vi.fn().mockResolvedValue(mockAccount),
       delete: vi.fn().mockResolvedValue(true),
       reconcile: vi.fn().mockResolvedValue({
-        account: new Account({ ...mockAccount, balance: 1050 }),
+        account: new Account({
+          id: 'acc-1',
+          userId: 'user-1',
+          name: 'BCP Principal',
+          type: 'CHECKING',
+          balance: 1050,
+          currency: 'PEN',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
         discrepancy: 50,
       }),
     };

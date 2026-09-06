@@ -168,13 +168,19 @@ bun run create:user <email> <password> [nombre]
 bun run create:user daniel@lascar.pe miClaveSegura123 "Daniel Colmenares"
 ```
 
-### 5. Ejecutar la API en Desarrollo con Portless
+### 5. Migración de Tasas Históricas para Transacciones VES (CLI)
+Para asignar tasas de cambio de referencia a transacciones en bolívares previas sin tasa registrada:
+```bash
+bun run migrate:rates
+```
+
+### 6. Ejecutar la API en Desarrollo con Portless
 ```bash
 # Desarrollo con watch mode y portless (HTTP puerto 1355)
 bun run start:dev
 ```
 
-### 6. Ejecutar Servidor MCP en Modo Stdio
+### 7. Ejecutar Servidor MCP en Modo Stdio
 ```bash
 bun run mcp:start
 ```

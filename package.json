@@ -17,6 +17,7 @@
     "prisma:push": "prisma db push",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "create:user": "bun run scripts/create-user.ts",
+    "migrate:rates": "bun run scripts/migrate_historical_rates.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",

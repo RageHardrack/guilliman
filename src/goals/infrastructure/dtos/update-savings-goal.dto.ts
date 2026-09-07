@@ -24,4 +24,10 @@ export class UpdateSavingsGoalDto {
 
   @ApiPropertyOptional({ description: 'Indica si la meta se ha completado' })
   isCompleted?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Nivel de prioridad de la meta (LOW, MEDIUM, HIGH)',
+    enum: ['LOW', 'MEDIUM', 'HIGH'],
+  })
+  priority?: string;
 }

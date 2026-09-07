@@ -12,6 +12,7 @@ export class SavingsGoal {
     public readonly isCompleted: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
+    public readonly priority: string = 'MEDIUM',
   ) {}
 
   get progressPercentage(): number {

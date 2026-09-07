@@ -49,6 +49,7 @@ export class SavingsGoalsController {
       targetDate: dto.targetDate ? new Date(dto.targetDate) : null,
       color: dto.color,
       icon: dto.icon,
+      priority: dto.priority,
     });
   }
 

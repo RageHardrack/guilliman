@@ -9,6 +9,7 @@ export interface CreateSavingsGoalData {
   targetDate?: Date | null;
   color?: string | null;
   icon?: string | null;
+  priority?: string;
 }
 
 export interface UpdateSavingsGoalData {
@@ -19,6 +20,7 @@ export interface UpdateSavingsGoalData {
   targetDate?: Date | null;
   color?: string | null;
   icon?: string | null;
+  priority?: string;
   isCompleted?: boolean;
 }
 

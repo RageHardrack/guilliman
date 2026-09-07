@@ -26,6 +26,7 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
       model.isCompleted,
       new Date(model.createdAt),
       new Date(model.updatedAt),
+      model.priority || 'MEDIUM',
     );
   }
 
@@ -41,6 +42,7 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
         targetDate: data.targetDate || null,
         color: data.color || null,
         icon: data.icon || null,
+        priority: data.priority || 'MEDIUM',
         isCompleted,
       },
     });

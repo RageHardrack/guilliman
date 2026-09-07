@@ -119,6 +119,7 @@ model SavingsGoal {
   targetDate    DateTime?
   color         String?
   icon          String?
+  priority      String    @default("MEDIUM")
   isCompleted   Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

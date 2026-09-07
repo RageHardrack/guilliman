@@ -41,4 +41,12 @@ export class CreateSavingsGoalDto {
     example: 'i-heroicons-shield-check',
   })
   icon?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nivel de prioridad de la meta (LOW, MEDIUM, HIGH)',
+    example: 'HIGH',
+    enum: ['LOW', 'MEDIUM', 'HIGH'],
+    default: 'MEDIUM',
+  })
+  priority?: string;
 }

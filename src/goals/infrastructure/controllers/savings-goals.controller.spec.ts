@@ -21,6 +21,7 @@ describe('SavingsGoalsController', () => {
     false,
     new Date(),
     new Date(),
+    'HIGH',
   );
 
   beforeEach(() => {
@@ -37,18 +38,30 @@ describe('SavingsGoalsController', () => {
     controller = new SavingsGoalsController(repository);
   });
 
-  it('should create a new savings goal', async () => {
+  it('should create a new savings goal with priority', async () => {
     const result = await controller.create(
       { userId: 'user-1' },
       {
         name: 'Fondo de Emergencia',
         targetAmount: 5000,
         currency: 'USD',
+        priority: 'HIGH',
       },
     );
 
     expect(result).toBe(mockGoal);
-    expect(repository.create).toHaveBeenCalled();
+    expect(result.priority).toBe('HIGH');
+    expect(repository.create).toHaveBeenCalledWith({
+      userId: 'user-1',
+      name: 'Fondo de Emergencia',
+      targetAmount: 5000,
+      currentAmount: undefined,
+      currency: 'USD',
+      targetDate: null,
+      color: undefined,
+      icon: undefined,
+      priority: 'HIGH',
+    });
   });
 
   it('should return all savings goals for the user', async () => {

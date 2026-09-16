@@ -3,7 +3,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { Client } from '@notionhq/client';
 
-export const NOTION_CLIENT = 'NOTION_CLIENT';
+import { LanguagesService } from './languages.service';
+import { NOTION_CLIENT } from './notion.constants';
+
+export { NOTION_CLIENT } from './notion.constants';
 
 @Global()
 @Module({
@@ -17,7 +20,8 @@ export const NOTION_CLIENT = 'NOTION_CLIENT';
       },
       inject: [ConfigService],
     },
+    LanguagesService,
   ],
-  exports: [NOTION_CLIENT],
+  exports: [NOTION_CLIENT, LanguagesService],
 })
 export class NotionModule {}

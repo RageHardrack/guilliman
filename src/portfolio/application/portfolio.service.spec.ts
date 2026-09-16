@@ -57,6 +57,22 @@ describe('PortfolioService', () => {
       expect(mockRepository.getPortfolioContent).toHaveBeenCalledTimes(1);
       expect(mockRepository.findProjects).toHaveBeenCalledWith(
         'projects-db-id',
+        undefined,
+      );
+    });
+
+    it('should forward lang parameter to findProjects in getPortfolio', async () => {
+      mockRepository.findAllChildDatabases.mockResolvedValue([
+        { title: 'Projects', id: 'projects-db-id' },
+      ]);
+      mockRepository.getPortfolioContent.mockResolvedValue([]);
+      mockRepository.findProjects.mockResolvedValue([]);
+
+      await service.getPortfolio('en');
+
+      expect(mockRepository.findProjects).toHaveBeenCalledWith(
+        'projects-db-id',
+        'en',
       );
     });
 

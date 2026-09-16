@@ -8,7 +8,7 @@ import { PortfolioRepositoryPort } from '../domain/portfolio-repository.port';
 export class PortfolioService {
   constructor(private readonly portfolioRepository: PortfolioRepositoryPort) {}
 
-  async getPortfolio(): Promise<{
+  async getPortfolio(lang?: string): Promise<{
     content: ContentBlock[];
     projects: IProject[];
   }> {
@@ -21,7 +21,7 @@ export class PortfolioService {
 
     const [content, projects] = await Promise.all([
       this.portfolioRepository.getPortfolioContent(),
-      this.portfolioRepository.findProjects(projectsDb.id),
+      this.portfolioRepository.findProjects(projectsDb.id, lang),
     ]);
 
     return { content, projects };

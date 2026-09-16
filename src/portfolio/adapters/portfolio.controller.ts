@@ -1,5 +1,5 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { PortfolioService } from '../application/portfolio.service';
 
@@ -10,9 +10,14 @@ export class PortfolioController {
 
   @Get('portfolio')
   @ApiOperation({ summary: 'Obtener resumen del portfolio' })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Código de idioma (ej. es, en)',
+  })
   @ApiResponse({ status: 200, description: 'Resumen de proyectos y perfil' })
-  async getPortfolio() {
-    return this.portfolioService.getPortfolio();
+  async getPortfolio(@Query('lang') lang?: string) {
+    return this.portfolioService.getPortfolio(lang);
   }
 
   @Get('projects/:slug')

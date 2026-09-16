@@ -9,6 +9,7 @@ export interface IPost {
   Post: string;
   Prevent_Index: boolean;
   Language: string;
+  TranslationSlug?: string;
   Stage: string;
 }
 

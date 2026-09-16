@@ -125,11 +125,11 @@ src/
 ├── transactions/       # Registro de transacciones y metadatos SUNAT
 ├── tax/                # Motor fiscal SUNAT (4ta/5ta categoría, UIT 2026, 3 UIT)
 ├── mcp/                # Servidor Model Context Protocol con Auth Guard ADMIN
-├── notion/             # Integración con base de datos de contenidos Notion
+├── notion/             # Integración con Notion (CMS) y resolución de Languages (i18n)
 ├── discord/            # Bot de Discord (Gateway client, embed builder, dispatching)
 ├── webhooks/           # Webhooks de integración externa (GitHub CI/CD workflow notifications)
-├── blog/               # Endpoints públicos para el Blog
-├── portfolio/          # Proyectos y habilidades
+├── blog/               # Endpoints públicos del Blog con filtrado por idioma (?lang=es|en)
+├── portfolio/          # Proyectos y habilidades con filtrado por idioma (?lang=es|en)
 ├── links/              # Enlaces y redes
 └── infrastructure/     # Adaptadores de base de datos (PrismaService)
 ```

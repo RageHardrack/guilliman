@@ -54,7 +54,13 @@ describe('BlogService', () => {
 
       const result = await service.findAll();
       expect(result).toEqual(mockPosts);
-      expect(mockRepository.findAll).toHaveBeenCalledTimes(1);
+      expect(mockRepository.findAll).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should pass lang parameter to repository', async () => {
+      mockRepository.findAll.mockResolvedValue([]);
+      await service.findAll('en');
+      expect(mockRepository.findAll).toHaveBeenCalledWith('en');
     });
   });
 

@@ -7,8 +7,8 @@ import { BlogRepositoryPort } from '../domain/blog-repository.port';
 export class BlogService {
   constructor(private readonly blogRepository: BlogRepositoryPort) {}
 
-  async findAll(): Promise<IPost[]> {
-    return this.blogRepository.findAll();
+  async findAll(lang?: string): Promise<IPost[]> {
+    return this.blogRepository.findAll(lang);
   }
 
   async findBySlug(slug: string): Promise<any> {

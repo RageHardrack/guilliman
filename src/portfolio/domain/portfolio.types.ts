@@ -6,6 +6,7 @@ export interface IProject {
   Repository?: string;
   Preview: string;
   Language: string;
+  TranslationSlug?: string;
   Orden: number;
 }
 

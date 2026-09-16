@@ -4,6 +4,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { Client } from '@notionhq/client';
 
 import { NOTION_CLIENT } from '../../notion/notion.module';
+import { LanguagesService } from '../../notion/languages.service';
 import { ContentBlock } from '../../blog/domain/blog.types';
 import { PortfolioRepositoryPort } from '../domain/portfolio-repository.port';
 import {
@@ -20,6 +21,7 @@ export class NotionPortfolioRepository implements PortfolioRepositoryPort {
   constructor(
     @Inject(NOTION_CLIENT) private readonly notion: Client,
     private readonly configService: ConfigService,
+    private readonly languagesService: LanguagesService,
   ) {
     this.databaseId =
       this.configService.get<string>('NOTION_PORTFOLIO_ID') || '';
@@ -40,16 +42,55 @@ export class NotionPortfolioRepository implements PortfolioRepositoryPort {
       }));
   }
 
-  async findProjects(blockId: string): Promise<IProject[]> {
-    const response = await this.notion.databases.query({
+  async findProjects(blockId: string, lang?: string): Promise<IProject[]> {
+    const queryParams: any = {
       database_id: blockId,
       sorts: [{ property: 'Orden', direction: 'ascending' }],
-    });
+    };
 
-    return (response.results as any[]).map((project) => ({
-      id: project.id,
-      ...this.mapProjectProperties(project.properties),
-    }));
+    if (lang) {
+      const languageId = await this.languagesService.getLanguageIdByCode(lang);
+      if (languageId) {
+        queryParams.filter = {
+          property: 'Language',
+          relation: {
+            contains: languageId,
+          },
+        };
+      }
+    }
+
+    const response = await this.notion.databases.query(queryParams);
+
+    const projects = await Promise.all(
+      (response.results as any[]).map(async (project) => {
+        const mapped = await this.mapProjectProperties(project.properties);
+
+        let translationSlug: string | undefined;
+        const translationRelation = project.properties.Translations?.relation;
+        if (translationRelation && translationRelation.length > 0) {
+          try {
+            const translatedPageId = translationRelation[0].id;
+            const translatedPage: any = await this.notion.pages.retrieve({
+              page_id: translatedPageId,
+            });
+            translationSlug =
+              translatedPage.properties.Slug?.rich_text?.[0]?.plain_text ||
+              undefined;
+          } catch {
+            // Ignored if cannot be fetched
+          }
+        }
+
+        return {
+          id: project.id,
+          ...mapped,
+          TranslationSlug: translationSlug,
+        };
+      }),
+    );
+
+    return projects;
   }
 
   async getProjectContent(projectId: string): Promise<ContentBlock[]> {
@@ -98,14 +139,23 @@ export class NotionPortfolioRepository implements PortfolioRepositoryPort {
       .map((block) => this.mapContentBlock(block));
   }
 
-  private mapProjectProperties(properties: any) {
+  private async mapProjectProperties(properties: any) {
+    let languageCode = '';
+    const langRelationId = properties.Language?.relation?.[0]?.id;
+    if (langRelationId) {
+      languageCode =
+        (await this.languagesService.getLanguageCodeById(langRelationId)) || '';
+    } else if (properties.Language?.select?.name) {
+      languageCode = properties.Language.select.name;
+    }
+
     return {
       Name: properties.Name?.title?.[0]?.plain_text || '',
       Slug: properties.Slug?.rich_text?.[0]?.plain_text || '',
       Tags: properties.Tags?.multi_select?.map((tag: any) => tag.name) || [],
       Repository: properties.Repository?.url || '',
       Preview: properties.Preview?.url || '',
-      Language: properties.Language?.select?.name || '',
+      Language: languageCode,
       Orden: properties.Orden?.number || 0,
     };
   }

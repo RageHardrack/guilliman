@@ -1,5 +1,5 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { BlogService } from '../application/blog.service';
 
@@ -10,9 +10,14 @@ export class BlogController {
 
   @Get()
   @ApiOperation({ summary: 'Obtener todos los artículos del blog' })
+  @ApiQuery({
+    name: 'lang',
+    required: false,
+    description: 'Código de idioma (ej. es, en)',
+  })
   @ApiResponse({ status: 200, description: 'Lista de artículos' })
-  async findAll() {
-    const posts = await this.blogService.findAll();
+  async findAll(@Query('lang') lang?: string) {
+    const posts = await this.blogService.findAll(lang);
     return { posts };
   }
 

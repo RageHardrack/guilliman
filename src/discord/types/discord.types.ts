@@ -40,3 +40,15 @@ export interface WorkflowEmbedParams {
   runStartedAt: string;
   updatedAt: string;
 }
+
+export interface ReleaseEmbedParams {
+  repositoryName: string;
+  repositoryFullName: string;
+  tagName: string;
+  releaseName: string | null;
+  body: string | null;
+  htmlUrl: string;
+  actorLogin: string;
+  actorAvatarUrl: string;
+  publishedAt: string;
+}

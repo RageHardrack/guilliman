@@ -133,4 +133,49 @@ describe('GithubWebhookController', () => {
 
     expect(result).toEqual({ status: 'error', message: 'dispatch_failed' });
   });
+
+  it('should process release published event and dispatch changelog embed', async () => {
+    const mockReleasePayload = {
+      action: 'published',
+      release: {
+        id: 101,
+        tag_name: 'v1.1.0',
+        name: 'v1.1.0 Release',
+        body: '### Features\n- Nueva funcionalidad',
+        html_url: 'https://github.com/RageHardrack/tique/releases/tag/v1.1.0',
+        author: { login: 'daniel', id: 1, avatar_url: '', html_url: '' },
+      },
+      repository: {
+        id: 1,
+        name: 'tique',
+        full_name: 'RageHardrack/tique',
+        html_url: 'https://github.com/RageHardrack/tique',
+        private: false,
+      },
+      sender: { login: 'daniel', id: 1, avatar_url: '', html_url: '' },
+    };
+
+    const result = await controller.handleGithubWebhook(
+      'release',
+      mockReleasePayload as any,
+    );
+
+    expect(notificationService.sendEmbed).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ status: 'processed' });
+  });
+
+  it('should ignore release events when action is not published', async () => {
+    const mockReleasePayload = {
+      action: 'created',
+      release: { id: 101, tag_name: 'v1.1.0' },
+    };
+
+    const result = await controller.handleGithubWebhook(
+      'release',
+      mockReleasePayload as any,
+    );
+
+    expect(notificationService.sendEmbed).not.toHaveBeenCalled();
+    expect(result).toEqual({ status: 'ignored', action: 'created' });
+  });
 });

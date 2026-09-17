@@ -70,6 +70,26 @@ export interface GitHubWorkflowRunPayload {
   sender: GitHubActor;
 }
 
+export interface GitHubRelease {
+  id: number;
+  tag_name: string;
+  name: string | null;
+  body: string | null;
+  draft?: boolean;
+  prerelease?: boolean;
+  created_at?: string;
+  published_at?: string;
+  html_url: string;
+  author: GitHubActor;
+}
+
+export interface GitHubReleasePayload {
+  action: 'published' | 'created' | 'edited' | 'deleted' | 'prereleased' | 'released';
+  release: GitHubRelease;
+  repository: GitHubRepository;
+  sender: GitHubActor;
+}
+
 export interface WebhookProcessedResponse {
   status: 'processed' | 'ignored' | 'skipped' | 'error';
   reason?: string;

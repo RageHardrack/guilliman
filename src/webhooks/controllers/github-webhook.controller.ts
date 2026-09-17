@@ -13,8 +13,10 @@ import {
 
 import { GithubSignatureGuard } from '../guards/github-signature.guard';
 import { WorkflowEmbedBuilder } from '../../discord/builders/workflow-embed.builder';
+import { ReleaseEmbedBuilder } from '../../discord/builders/release-embed.builder';
 import { DiscordNotificationService } from '../../discord/services/discord-notification.service';
 import {
+  GitHubReleasePayload,
   GitHubWorkflowRunPayload,
   WebhookProcessedResponse,
 } from '../types/github-webhook.types';
@@ -39,50 +41,87 @@ export class GithubWebhookController {
   })
   public async handleGithubWebhook(
     @Headers('x-github-event') event: string,
-    @Body() payload: GitHubWorkflowRunPayload | Record<string, any>,
+    @Body() payload: GitHubWorkflowRunPayload | GitHubReleasePayload | Record<string, any>,
   ): Promise<WebhookProcessedResponse> {
-    if (event !== 'workflow_run') {
-      this.logger.debug(`Ignoring unhandled GitHub event: ${event}`);
-      return { status: 'ignored', event };
-    }
-
-    const workflowPayload = payload as GitHubWorkflowRunPayload;
-    if (workflowPayload.action !== 'completed') {
-      this.logger.debug(
-        `Ignoring workflow_run with action: ${workflowPayload.action}`,
-      );
-      return { status: 'ignored', action: workflowPayload.action };
-    }
-
     const channelId = this.configService.get<string>(
       'DISCORD_NOTIFICATIONS_CHANNEL_ID',
     );
 
-    if (!channelId) {
-      this.logger.warn(
-        'DISCORD_NOTIFICATIONS_CHANNEL_ID is not configured. Skipping workflow notification.',
-      );
-      return { status: 'skipped', reason: 'channel_not_configured' };
-    }
-
-    try {
-      const embed = WorkflowEmbedBuilder.buildFromPayload(workflowPayload);
-      const sent = await this.discordNotificationService.sendEmbed({
-        channelId,
-        embed,
-      });
-
-      if (!sent) {
-        return { status: 'error', message: 'dispatch_failed' };
+    if (event === 'release') {
+      const releasePayload = payload as GitHubReleasePayload;
+      if (releasePayload.action !== 'published') {
+        this.logger.debug(
+          `Ignoring release with action: ${releasePayload.action}`,
+        );
+        return { status: 'ignored', action: releasePayload.action };
       }
 
-      return { status: 'processed' };
-    } catch (error: any) {
-      this.logger.error(
-        `Error dispatching workflow run embed: ${error?.message || error}`,
-        error?.stack,
-      );
-      return { status: 'error', message: error?.message || 'dispatch_failed' };
+      if (!channelId) {
+        this.logger.warn(
+          'DISCORD_NOTIFICATIONS_CHANNEL_ID is not configured. Skipping release notification.',
+        );
+        return { status: 'skipped', reason: 'channel_not_configured' };
+      }
+
+      try {
+        const embed = ReleaseEmbedBuilder.buildFromPayload(releasePayload);
+        const sent = await this.discordNotificationService.sendEmbed({
+          channelId,
+          embed,
+        });
+
+        if (!sent) {
+          return { status: 'error', message: 'dispatch_failed' };
+        }
+
+        return { status: 'processed' };
+      } catch (error: any) {
+        this.logger.error(
+          `Error dispatching release embed: ${error?.message || error}`,
+          error?.stack,
+        );
+        return { status: 'error', message: error?.message || 'dispatch_failed' };
+      }
     }
+
+    if (event === 'workflow_run') {
+      const workflowPayload = payload as GitHubWorkflowRunPayload;
+      if (workflowPayload.action !== 'completed') {
+        this.logger.debug(
+          `Ignoring workflow_run with action: ${workflowPayload.action}`,
+        );
+        return { status: 'ignored', action: workflowPayload.action };
+      }
+
+      if (!channelId) {
+        this.logger.warn(
+          'DISCORD_NOTIFICATIONS_CHANNEL_ID is not configured. Skipping workflow notification.',
+        );
+        return { status: 'skipped', reason: 'channel_not_configured' };
+      }
+
+      try {
+        const embed = WorkflowEmbedBuilder.buildFromPayload(workflowPayload);
+        const sent = await this.discordNotificationService.sendEmbed({
+          channelId,
+          embed,
+        });
+
+        if (!sent) {
+          return { status: 'error', message: 'dispatch_failed' };
+        }
+
+        return { status: 'processed' };
+      } catch (error: any) {
+        this.logger.error(
+          `Error dispatching workflow run embed: ${error?.message || error}`,
+          error?.stack,
+        );
+        return { status: 'error', message: error?.message || 'dispatch_failed' };
+      }
+    }
+
+    this.logger.debug(`Ignoring unhandled GitHub event: ${event}`);
+    return { status: 'ignored', event };
   }
 }

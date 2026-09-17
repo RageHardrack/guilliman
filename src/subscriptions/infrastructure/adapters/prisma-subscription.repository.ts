@@ -5,7 +5,10 @@ import {
   RecurrenceFrequency,
   Subscription,
 } from '../../domain/subscription.entity';
-import { SubscriptionRepositoryPort } from '../../application/ports/subscription.repository.port';
+import {
+  RecordPaymentOptions,
+  SubscriptionRepositoryPort,
+} from '../../application/ports/subscription.repository.port';
 
 @Injectable()
 export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort {
@@ -155,34 +158,42 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
 
   async recordPayment(
     id: string,
-    paymentDate?: Date,
+    options?: RecordPaymentOptions,
   ): Promise<{ subscription: Subscription; transactionId: string }> {
     const subRecord = await this.findById(id);
     if (!subRecord) {
       throw new NotFoundException('Suscripción no encontrada');
     }
 
-    const txDate = paymentDate || new Date();
+    const txDate = options?.paymentDate || new Date();
     const nextDate = subRecord.calculateNextDueDate();
+    const targetAccountId = options?.accountId || subRecord.accountId;
+    const finalDebitedAmount =
+      options?.debitedAmount !== undefined && options.debitedAmount !== null
+        ? options.debitedAmount
+        : subRecord.amount;
+    const txNote = options?.note || `Pago recurrente: ${subRecord.name}`;
 
     // Atomic transaction: create expense transaction, decrement account balance, advance due date
     const result = await this.prisma.$transaction(async (tx) => {
       const createdTx = await tx.transaction.create({
         data: {
           userId: subRecord.userId,
-          accountId: subRecord.accountId,
+          accountId: targetAccountId,
           categoryId: subRecord.categoryId,
-          amount: subRecord.amount,
+          amount: finalDebitedAmount,
+          destinationAmount: options?.destinationAmount,
+          exchangeRate: options?.exchangeRate,
           type: 'EXPENSE',
           date: txDate,
-          note: `Pago recurrente: ${subRecord.name}`,
+          note: txNote,
         },
       });
 
       await tx.account.update({
-        where: { id: subRecord.accountId },
+        where: { id: targetAccountId },
         data: {
-          balance: { decrement: subRecord.amount },
+          balance: { decrement: finalDebitedAmount },
         },
       });
 

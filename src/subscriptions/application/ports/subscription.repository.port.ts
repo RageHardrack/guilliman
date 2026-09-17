@@ -3,6 +3,15 @@ import {
   Subscription,
 } from '../../domain/subscription.entity';
 
+export interface RecordPaymentOptions {
+  paymentDate?: Date;
+  debitedAmount?: number;
+  exchangeRate?: number;
+  destinationAmount?: number;
+  accountId?: string;
+  note?: string;
+}
+
 export abstract class SubscriptionRepositoryPort {
   abstract create(subscription: {
     userId: string;
@@ -38,7 +47,7 @@ export abstract class SubscriptionRepositoryPort {
 
   abstract recordPayment(
     id: string,
-    paymentDate?: Date,
+    options?: RecordPaymentOptions,
   ): Promise<{ subscription: Subscription; transactionId: string }>;
 
   abstract delete(id: string): Promise<boolean>;

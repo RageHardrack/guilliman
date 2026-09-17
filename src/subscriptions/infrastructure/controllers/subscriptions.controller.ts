@@ -17,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 
 import { CreateSubscriptionDto } from '../dtos/create-subscription.dto';
+import { RecordSubscriptionPaymentDto } from '../dtos/record-subscription-payment.dto';
 import { SubscriptionRepositoryPort } from '../../application/ports/subscription.repository.port';
 
 @ApiTags('Subscriptions')
@@ -108,8 +109,18 @@ export class SubscriptionsController {
     status: 200,
     description: 'Pago registrado y suscripción actualizada',
   })
-  async pay(@Param('id') id: string) {
-    const result = await this.subscriptionRepository.recordPayment(id);
+  async pay(
+    @Param('id') id: string,
+    @Body() dto?: RecordSubscriptionPaymentDto,
+  ) {
+    const result = await this.subscriptionRepository.recordPayment(id, {
+      paymentDate: dto?.paymentDate ? new Date(dto.paymentDate) : undefined,
+      debitedAmount: dto?.debitedAmount,
+      exchangeRate: dto?.exchangeRate,
+      destinationAmount: dto?.destinationAmount,
+      accountId: dto?.accountId,
+      note: dto?.note,
+    });
     return {
       transactionId: result.transactionId,
       subscription: result.subscription.toJSON(),

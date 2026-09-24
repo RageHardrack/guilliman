@@ -185,4 +185,50 @@ describe('GithubWebhooks (e2e)', () => {
     expect(body).toEqual({ status: 'ignored', event: 'push' });
     expect(mockDiscordNotificationService.sendEmbed).not.toHaveBeenCalled();
   });
+
+  it('Case 5: Valid HMAC signature + release published payload -> 200 OK { status: "processed" }', async () => {
+    const payload = JSON.stringify({
+      action: 'published',
+      release: {
+        id: 101,
+        tag_name: 'v1.2.0',
+        name: 'v1.2.0 Release',
+        body: '### Features\n- Discord changelog channel support',
+        html_url: 'https://github.com/RageHardrack/lascar/releases/tag/v1.2.0',
+        author: { login: 'octocat', id: 1, avatar_url: '', html_url: '' },
+        published_at: '2026-09-24T15:00:00Z',
+      },
+      repository: {
+        id: 1,
+        name: 'lascar',
+        full_name: 'RageHardrack/lascar',
+        html_url: 'https://github.com/RageHardrack/lascar',
+        private: false,
+      },
+      sender: { login: 'octocat', id: 1, avatar_url: '', html_url: '' },
+    });
+
+    const signature = generateSignature(payload, webhookSecret);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/webhooks/github',
+      headers: {
+        'content-type': 'application/json',
+        'x-github-event': 'release',
+        'x-hub-signature-256': signature,
+      },
+      payload,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body).toEqual({ status: 'processed' });
+    expect(mockDiscordNotificationService.sendEmbed).toHaveBeenCalledTimes(1);
+    expect(mockDiscordNotificationService.sendEmbed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId,
+      }),
+    );
+  });
 });

@@ -12,10 +12,10 @@ import {
 } from '@nestjs/common';
 
 import { GithubSignatureGuard } from '../guards/github-signature.guard';
-import { WorkflowEmbedBuilder } from '../../discord/builders/workflow-embed.builder';
 import { ReleaseEmbedBuilder } from '../../discord/builders/release-embed.builder';
+import { WorkflowEmbedBuilder } from '../../discord/builders/workflow-embed.builder';
 import { DiscordNotificationService } from '../../discord/services/discord-notification.service';
-import {
+import type {
   GitHubReleasePayload,
   GitHubWorkflowRunPayload,
   WebhookProcessedResponse,
@@ -41,7 +41,9 @@ export class GithubWebhookController {
   })
   public async handleGithubWebhook(
     @Headers('x-github-event') event: string,
-    @Body() payload: GitHubWorkflowRunPayload | GitHubReleasePayload | Record<string, any>,
+    @Body()
+    payload:
+      GitHubWorkflowRunPayload | GitHubReleasePayload | Record<string, any>,
   ): Promise<WebhookProcessedResponse> {
     const channelId = this.configService.get<string>(
       'DISCORD_NOTIFICATIONS_CHANNEL_ID',
@@ -56,9 +58,13 @@ export class GithubWebhookController {
         return { status: 'ignored', action: releasePayload.action };
       }
 
-      if (!channelId) {
+      const changelogChannelId =
+        this.configService.get<string>('DISCORD_CHANGELOG_CHANNEL_ID') ||
+        this.configService.get<string>('DISCORD_NOTIFICATIONS_CHANNEL_ID');
+
+      if (!changelogChannelId) {
         this.logger.warn(
-          'DISCORD_NOTIFICATIONS_CHANNEL_ID is not configured. Skipping release notification.',
+          'Neither DISCORD_CHANGELOG_CHANNEL_ID nor DISCORD_NOTIFICATIONS_CHANNEL_ID is configured. Skipping release notification.',
         );
         return { status: 'skipped', reason: 'channel_not_configured' };
       }
@@ -66,7 +72,7 @@ export class GithubWebhookController {
       try {
         const embed = ReleaseEmbedBuilder.buildFromPayload(releasePayload);
         const sent = await this.discordNotificationService.sendEmbed({
-          channelId,
+          channelId: changelogChannelId,
           embed,
         });
 
@@ -80,7 +86,10 @@ export class GithubWebhookController {
           `Error dispatching release embed: ${error?.message || error}`,
           error?.stack,
         );
-        return { status: 'error', message: error?.message || 'dispatch_failed' };
+        return {
+          status: 'error',
+          message: error?.message || 'dispatch_failed',
+        };
       }
     }
 
@@ -117,7 +126,10 @@ export class GithubWebhookController {
           `Error dispatching workflow run embed: ${error?.message || error}`,
           error?.stack,
         );
-        return { status: 'error', message: error?.message || 'dispatch_failed' };
+        return {
+          status: 'error',
+          message: error?.message || 'dispatch_failed',
+        };
       }
     }
 

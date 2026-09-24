@@ -3,8 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { GithubWebhookController } from './github-webhook.controller';
-import { GitHubWorkflowRunPayload } from '../types/github-webhook.types';
 import { DiscordNotificationService } from '../../discord/services/discord-notification.service';
+import type {
+  GitHubReleasePayload,
+  GitHubWorkflowRunPayload,
+} from '../types/github-webhook.types';
+
+if (!('mocked' in vi)) {
+  (vi as any).mocked = (fn: any) => fn;
+}
 
 describe('GithubWebhookController', () => {
   let controller: GithubWebhookController;
@@ -55,6 +62,26 @@ describe('GithubWebhookController', () => {
       name: 'lascar',
       full_name: 'RageHardrack/lascar',
       html_url: 'https://github.com/RageHardrack/lascar',
+      private: false,
+    },
+    sender: { login: 'daniel', id: 1, avatar_url: '', html_url: '' },
+  };
+
+  const mockReleasePayload: GitHubReleasePayload = {
+    action: 'published',
+    release: {
+      id: 101,
+      tag_name: 'v1.1.0',
+      name: 'v1.1.0 Release',
+      body: '### Features\n- Nueva funcionalidad',
+      html_url: 'https://github.com/RageHardrack/tique/releases/tag/v1.1.0',
+      author: { login: 'daniel', id: 1, avatar_url: '', html_url: '' },
+    },
+    repository: {
+      id: 1,
+      name: 'tique',
+      full_name: 'RageHardrack/tique',
+      html_url: 'https://github.com/RageHardrack/tique',
       private: false,
     },
     sender: { login: 'daniel', id: 1, avatar_url: '', html_url: '' },
@@ -134,45 +161,74 @@ describe('GithubWebhookController', () => {
     expect(result).toEqual({ status: 'error', message: 'dispatch_failed' });
   });
 
-  it('should process release published event and dispatch changelog embed', async () => {
-    const mockReleasePayload = {
-      action: 'published',
-      release: {
-        id: 101,
-        tag_name: 'v1.1.0',
-        name: 'v1.1.0 Release',
-        body: '### Features\n- Nueva funcionalidad',
-        html_url: 'https://github.com/RageHardrack/tique/releases/tag/v1.1.0',
-        author: { login: 'daniel', id: 1, avatar_url: '', html_url: '' },
-      },
-      repository: {
-        id: 1,
-        name: 'tique',
-        full_name: 'RageHardrack/tique',
-        html_url: 'https://github.com/RageHardrack/tique',
-        private: false,
-      },
-      sender: { login: 'daniel', id: 1, avatar_url: '', html_url: '' },
-    };
+  it('should dispatch to DISCORD_CHANGELOG_CHANNEL_ID when DISCORD_CHANGELOG_CHANNEL_ID is set', async () => {
+    vi.mocked(configService.get).mockImplementation((key: string) => {
+      if (key === 'DISCORD_CHANGELOG_CHANNEL_ID') return 'chan-changelog-999';
+      if (key === 'DISCORD_NOTIFICATIONS_CHANNEL_ID')
+        return 'chan-notifications-123';
+      return null;
+    });
 
     const result = await controller.handleGithubWebhook(
       'release',
-      mockReleasePayload as any,
+      mockReleasePayload,
     );
 
     expect(notificationService.sendEmbed).toHaveBeenCalledTimes(1);
+    expect(notificationService.sendEmbed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'chan-changelog-999',
+      }),
+    );
     expect(result).toEqual({ status: 'processed' });
   });
 
+  it('should fall back to DISCORD_NOTIFICATIONS_CHANNEL_ID when DISCORD_CHANGELOG_CHANNEL_ID is not set', async () => {
+    vi.mocked(configService.get).mockImplementation((key: string) => {
+      if (key === 'DISCORD_CHANGELOG_CHANNEL_ID') return undefined;
+      if (key === 'DISCORD_NOTIFICATIONS_CHANNEL_ID')
+        return 'chan-notifications-123';
+      return null;
+    });
+
+    const result = await controller.handleGithubWebhook(
+      'release',
+      mockReleasePayload,
+    );
+
+    expect(notificationService.sendEmbed).toHaveBeenCalledTimes(1);
+    expect(notificationService.sendEmbed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'chan-notifications-123',
+      }),
+    );
+    expect(result).toEqual({ status: 'processed' });
+  });
+
+  it('should return skipped with channel_not_configured when neither channel is set for release', async () => {
+    vi.mocked(configService.get).mockReturnValue(undefined);
+
+    const result = await controller.handleGithubWebhook(
+      'release',
+      mockReleasePayload,
+    );
+
+    expect(notificationService.sendEmbed).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      status: 'skipped',
+      reason: 'channel_not_configured',
+    });
+  });
+
   it('should ignore release events when action is not published', async () => {
-    const mockReleasePayload = {
+    const unpublishedReleasePayload: GitHubReleasePayload = {
+      ...mockReleasePayload,
       action: 'created',
-      release: { id: 101, tag_name: 'v1.1.0' },
     };
 
     const result = await controller.handleGithubWebhook(
       'release',
-      mockReleasePayload as any,
+      unpublishedReleasePayload,
     );
 
     expect(notificationService.sendEmbed).not.toHaveBeenCalled();

@@ -82,13 +82,15 @@ Guilliman incluye un módulo nativo de Discord Bot y receptor de Webhooks para n
 - **`DiscordClientService`**: Gestiona el ciclo de vida del cliente `discord.js`, conexión al Gateway, reconexión y degradación elegante si `DISCORD_BOT_TOKEN` no está configurado.
 - **`DiscordNotificationService`**: Envía mensajes y embeds formateados a canales específicos de Discord.
 - **`WorkflowEmbedBuilder`**: Construye embeds enriquecidos codificados por color (Verde = éxito, Rojo = fallo, Azul = en progreso, Naranja = timeout/alerta) con enlaces al repositorio, rama, commit truncado y duración.
+- **`ReleaseEmbedBuilder`**: Construye embeds enriquecidos para publicaciones de lanzamientos y notas de cambios (*changelog*) a partir de eventos `release`.
 - **`GithubSignatureGuard`**: Valida firmas HMAC-SHA256 (`X-Hub-Signature-256`) en tiempo constante (`crypto.timingSafeEqual`).
-- **`GithubWebhookController`**: Endpoint `POST /api/v1/webhooks/github` que procesa eventos `workflow_run` y delega a Discord.
+- **`GithubWebhookController`**: Endpoint `POST /api/v1/webhooks/github` que procesa eventos `workflow_run` y `release` y los delega a los canales correspondientes de Discord.
 
 ### Variables de Entorno
 ```env
 DISCORD_BOT_TOKEN="tu_discord_bot_token"
 DISCORD_NOTIFICATIONS_CHANNEL_ID="tu_canal_discord_id"
+DISCORD_CHANGELOG_CHANNEL_ID="tu_canal_changelog_discord_id" # Opcional: canal exclusivo para lanzamientos; si no se configura, recurre a DISCORD_NOTIFICATIONS_CHANNEL_ID
 GITHUB_WEBHOOK_SECRET="tu_github_webhook_secret"
 ```
 
@@ -97,7 +99,7 @@ GITHUB_WEBHOOK_SECRET="tu_github_webhook_secret"
 2. **Payload URL**: `https://api.tu-dominio.com/api/v1/webhooks/github`
 3. **Content type**: `application/json`
 4. **Secret**: La misma clave configurada en `GITHUB_WEBHOOK_SECRET`.
-5. **Events**: Seleccionar *Let me select individual events* y marcar **Workflow runs**.
+5. **Events**: Seleccionar *Let me select individual events* y marcar **Workflow runs** y **Releases**.
 
 ---
 

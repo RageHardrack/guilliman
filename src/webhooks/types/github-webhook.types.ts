@@ -84,7 +84,8 @@ export interface GitHubRelease {
 }
 
 export interface GitHubReleasePayload {
-  action: 'published' | 'created' | 'edited' | 'deleted' | 'prereleased' | 'released';
+  action:
+    'published' | 'created' | 'edited' | 'deleted' | 'prereleased' | 'released';
   release: GitHubRelease;
   repository: GitHubRepository;
   sender: GitHubActor;

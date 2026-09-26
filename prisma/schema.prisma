@@ -279,3 +279,44 @@ model ExchangeRate {
 
   @@map("exchange_rates")
 }
+
+// ==========================================
+// Leon Isolated Domain (Wargaming Engine)
+// ==========================================
+
+enum LeonRole {
+  ADMIN
+  USER
+}
+
+model LeonUser {
+  id        String       @id @default(uuid())
+  email     String       @unique
+  password  String
+  name      String?
+  role      LeonRole     @default(USER)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  rosters   LeonRoster[]
+
+  @@map("leon_users")
+}
+
+model LeonRoster {
+  id          String   @id @default(uuid())
+  leonUserId  String
+  name        String
+  gameSystem  String   @default("40k-10e")
+  faction     String?
+  detachment  String?
+  pointsLimit Int      @default(2000)
+  pointsTotal Int      @default(0)
+  content     Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user LeonUser @relation(fields: [leonUserId], references: [id], onDelete: Cascade)
+
+  @@map("leon_rosters")
+}

@@ -24,12 +24,14 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { PrismaModule } from './infrastructure/database/prisma/prisma.module';
+import { LeonModule } from './leon/leon.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    LeonModule,
     PrismaModule,
     UsersModule,
     AuthModule,

@@ -1,5 +1,9 @@
 # Guilliman (NestJS Backend API & Tique-MCP Server)
 
+<a href="https://github.com/Gentleman-Programming/gentle-ai">
+  <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
+</a>
+
 **Guilliman** es la API backend central y servidor **Model Context Protocol (MCP)** del ecosistema Lascar. Provee servicios REST para gestión de contenidos (Notion), autenticación de usuarios, finanzas personales (cuentas, transacciones, presupuestos, suscripciones, préstamos), liquidación tributaria (SUNAT) y conexión directa con agentes de IA (**Gemini Spark**) mediante transporte `stdio` y `SSE`, estructurado bajo **Arquitectura Hexagonal (Ports & Adapters)**.
 
 ---

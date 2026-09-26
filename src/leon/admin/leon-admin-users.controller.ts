@@ -20,7 +20,8 @@ import {
 import { LeonRoles } from '../guards/leon-roles.decorator';
 import { LeonRolesGuard } from '../guards/leon-roles.guard';
 import { LeonJwtAuthGuard } from '../guards/leon-jwt-auth.guard';
-import { CurrentLeonUser, CurrentLeonUserData } from '../auth/current-leon-user.decorator';
+import { CurrentLeonUser } from '../auth/current-leon-user.decorator';
+import type { CurrentLeonUserData } from '../auth/current-leon-user.decorator';
 
 @ApiTags('Leon Admin')
 @ApiBearerAuth()

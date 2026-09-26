@@ -13,7 +13,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LeonRostersService } from './leon-rosters.service';
 import { CreateLeonRosterDto, UpdateLeonRosterDto } from './dtos/leon-roster.dto';
 import { LeonJwtAuthGuard } from '../guards/leon-jwt-auth.guard';
-import { CurrentLeonUser, CurrentLeonUserData } from '../auth/current-leon-user.decorator';
+import { CurrentLeonUser } from '../auth/current-leon-user.decorator';
+import type { CurrentLeonUserData } from '../auth/current-leon-user.decorator';
 
 @ApiTags('Leon Rosters')
 @ApiBearerAuth()

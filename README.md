@@ -27,6 +27,7 @@
 El backend Guilliman incluye un servidor nativo MCP que expone 7 herramientas financieras y tributarias de Tique para agentes de IA:
 
 ### Herramientas Expuestas
+
 1. `tique_get_fiscal_summary`: Liquidación consolidada de Rentas de Trabajo 4ta/5ta categoría, saldo a favor y DJ anual.
 2. `tique_get_monthly_tax_checklist`: Checklist mensual (RHE Datincorp, pago a cuenta 8%, saldo a favor, vencimiento dígito 3).
 3. `tique_simulate_tax_scenario`: Simulación de impacto tributario ante variaciones de ingresos y gastos deducibles 3 UIT.
@@ -36,10 +37,12 @@ El backend Guilliman incluye un servidor nativo MCP que expone 7 herramientas fi
 7. `tique_record_debt_payment`: Abono a préstamos o tarjetas con consistencia transaccional.
 
 ### Seguridad y Control de Acceso (Solo ADMIN)
+
 - El servidor MCP exige que el usuario resuelto tenga **`role === 'ADMIN'`** y **`isActive === true`**.
 - Se puede especificar el usuario explícito mediante `MCP_USER_ID` o `MCP_USER_EMAIL` en el entorno, o resolverá automáticamente el primer administrador activo.
 
 ### Configuración para Gemini Spark (Local en macOS vía Stdio)
+
 ```json
 {
   "mcpServers": {
@@ -58,7 +61,9 @@ El backend Guilliman incluye un servidor nativo MCP que expone 7 herramientas fi
 ```
 
 ### Configuración para Gemini Spark (Remoto en Producción vía HTTP / SSE)
+
 Cuando Guilliman se encuentre desplegado en el VPS:
+
 - Endpoint SSE: `GET /api/v1/mcp/sse`
 - Endpoint Mensajes: `POST /api/v1/mcp/messages?sessionId={id}`
 - Seguridad: Requiere cabecera `Authorization: Bearer <TOKEN_ADMIN_JWT>`
@@ -83,14 +88,16 @@ Cuando Guilliman se encuentre desplegado en el VPS:
 Guilliman incluye un módulo nativo de Discord Bot y receptor de Webhooks para notificaciones en tiempo real del estado de pipelines CI/CD (GitHub Actions):
 
 ### Componentes Principales
+
 - **`DiscordClientService`**: Gestiona el ciclo de vida del cliente `discord.js`, conexión al Gateway, reconexión y degradación elegante si `DISCORD_BOT_TOKEN` no está configurado.
 - **`DiscordNotificationService`**: Envía mensajes y embeds formateados a canales específicos de Discord.
 - **`WorkflowEmbedBuilder`**: Construye embeds enriquecidos codificados por color (Verde = éxito, Rojo = fallo, Azul = en progreso, Naranja = timeout/alerta) con enlaces al repositorio, rama, commit truncado y duración.
-- **`ReleaseEmbedBuilder`**: Construye embeds enriquecidos para publicaciones de lanzamientos y notas de cambios (*changelog*) a partir de eventos `release`.
+- **`ReleaseEmbedBuilder`**: Construye embeds enriquecidos para publicaciones de lanzamientos y notas de cambios (_changelog_) a partir de eventos `release`.
 - **`GithubSignatureGuard`**: Valida firmas HMAC-SHA256 (`X-Hub-Signature-256`) en tiempo constante (`crypto.timingSafeEqual`).
 - **`GithubWebhookController`**: Endpoint `POST /api/v1/webhooks/github` que procesa eventos `workflow_run` y `release` y los delega a los canales correspondientes de Discord.
 
 ### Variables de Entorno
+
 ```env
 DISCORD_BOT_TOKEN="tu_discord_bot_token"
 DISCORD_NOTIFICATIONS_CHANNEL_ID="tu_canal_discord_id"
@@ -99,11 +106,12 @@ GITHUB_WEBHOOK_SECRET="tu_github_webhook_secret"
 ```
 
 ### Configuración en GitHub Webhooks
+
 1. En el repositorio de GitHub, navegar a **Settings** -> **Webhooks** -> **Add webhook**.
 2. **Payload URL**: `https://api.tu-dominio.com/api/v1/webhooks/github`
 3. **Content type**: `application/json`
 4. **Secret**: La misma clave configurada en `GITHUB_WEBHOOK_SECRET`.
-5. **Events**: Seleccionar *Let me select individual events* y marcar **Workflow runs** y **Releases**.
+5. **Events**: Seleccionar _Let me select individual events_ y marcar **Workflow runs** y **Releases**.
 
 ---
 
@@ -129,6 +137,7 @@ src/
 ├── loans/              # Préstamos y deudas con amortizaciones e impacto bancario
 ├── subscriptions/      # Suscripciones, pagos recurrentes
 ├── transactions/       # Registro de transacciones y metadatos SUNAT
+├── transaction-templates/ # Plantillas de gasto/ingreso/transferencia para registro rápido
 ├── tax/                # Motor fiscal SUNAT (4ta/5ta categoría, UIT 2026, 3 UIT)
 ├── mcp/                # Servidor Model Context Protocol con Auth Guard ADMIN
 ├── notion/             # Integración con Notion (CMS) y resolución de Languages (i18n)
@@ -140,33 +149,55 @@ src/
 └── infrastructure/     # Adaptadores de base de datos (PrismaService)
 ```
 
+### Plantillas de transacción (`/api/v1/transaction-templates`)
+
+Movimientos pre-hechos por usuario (gasto, ingreso o transferencia) para el registro rápido de Tique. No son programables: sin frecuencias ni recordatorios. Todas las rutas requieren JWT y el `userId` sale siempre del token; una plantilla inexistente o ajena responde 404 y no modifica nada.
+
+| Método | Ruta                             | Descripción                                                                                                                   |
+| ------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/transaction-templates`         | Plantillas del usuario, ordenadas por uso reciente (`lastUsedAt` descendente, nunca usadas al final, luego `name` ascendente) |
+| POST   | `/transaction-templates`         | Crear plantilla (`name`, `type`, `accountId`, `destinationAccountId?`, `categoryId?`, `defaultAmount?`, `note?`)              |
+| PUT    | `/transaction-templates/:id`     | Actualizar plantilla (cuerpo completo)                                                                                        |
+| DELETE | `/transaction-templates/:id`     | Eliminar plantilla                                                                                                            |
+| POST   | `/transaction-templates/:id/use` | Marcar como usada: fija `lastUsedAt` a la hora actual                                                                         |
+
+Reglas validadas en el dominio (respuesta 400 si se incumplen): `type` es `EXPENSE`, `INCOME` o `TRANSFER`; `TRANSFER` exige `destinationAccountId` distinto de `accountId`; `EXPENSE`/`INCOME` no llevan cuenta destino; `defaultAmount` es opcional y, si viene, debe ser un número mayor a 0; `accountId` y `categoryId` deben pertenecer al usuario. Las transacciones se siguen creando con `POST /transactions`.
+
 ---
 
 ## 🚀 Inicio Rápido (Desarrollo Local)
 
 ### 1. Instalación de dependencias
+
 ```bash
 bun install
 ```
 
 ### 2. Levantar la Base de Datos PostgreSQL 17 Local
+
 Dentro de esta carpeta (`guilliman/`):
+
 ```bash
 docker compose up -d
 ```
 
 ### 3. Configurar Variables de Entorno y Sincronizar Prisma
+
 Crea un archivo `.env` en `guilliman/`:
+
 ```env
 DATABASE_URL="postgresql://guilliman_user:guilliman_secret@localhost:5434/guilliman_db?schema=public"
 PORT=3000
 ```
+
 Sincronizá el esquema de Prisma con PostgreSQL:
+
 ```bash
 bunx prisma db push
 ```
 
 ### 4. Crear o Actualizar Usuarios Familiares / Administradores (CLI)
+
 ```bash
 bun run create:user <email> <password> [nombre]
 
@@ -175,18 +206,22 @@ bun run create:user daniel@lascar.pe miClaveSegura123 "Daniel Colmenares"
 ```
 
 ### 5. Migración de Tasas Históricas para Transacciones VES (CLI)
+
 Para asignar tasas de cambio de referencia a transacciones en bolívares previas sin tasa registrada:
+
 ```bash
 bun run migrate:rates
 ```
 
 ### 6. Ejecutar la API en Desarrollo con Portless
+
 ```bash
 # Desarrollo con watch mode y portless (HTTP puerto 1355)
 bun run start:dev
 ```
 
 ### 7. Ejecutar Servidor MCP en Modo Stdio
+
 ```bash
 bun run mcp:start
 ```

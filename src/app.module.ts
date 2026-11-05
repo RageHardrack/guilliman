@@ -6,6 +6,7 @@ import { McpModule } from './mcp/mcp.module';
 import { TaxModule } from './tax/tax.module';
 import { AuthModule } from './auth/auth.module';
 import { BlogModule } from './blog/blog.module';
+import { LeonModule } from './leon/leon.module';
 import { AppController } from './app.controller';
 import { AboutModule } from './about/about.module';
 import { AdminModule } from './admin/admin.module';
@@ -24,7 +25,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { PrismaModule } from './infrastructure/database/prisma/prisma.module';
-import { LeonModule } from './leon/leon.module';
+import { TransactionTemplatesModule } from './transaction-templates/transaction-templates.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { LeonModule } from './leon/leon.module';
     BudgetsModule,
     SubscriptionsModule,
     TransactionsModule,
+    TransactionTemplatesModule,
     GoalsModule,
     LoansModule,
     TaxModule,

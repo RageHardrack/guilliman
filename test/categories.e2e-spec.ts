@@ -1,3 +1,4 @@
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   NestFastifyApplication,
@@ -11,6 +12,7 @@ describe('CategoriesController (e2e)', () => {
   let app: NestFastifyApplication;
   let prisma: PrismaService;
   let testUserId: string;
+  let authHeaders: { authorization: string };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -39,6 +41,21 @@ describe('CategoriesController (e2e)', () => {
       });
     }
     testUserId = user.id;
+
+    // Routes take the owner from the JWT, so sign one for the test user.
+    const token = await app
+      .get(JwtService, { strict: false })
+      .signAsync({ sub: user.id, email: user.email, role: user.role });
+    authHeaders = { authorization: `Bearer ${token}` };
+  });
+
+  it('rejects requests without a token', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/categories?userId=${testUserId}`,
+    });
+
+    expect(res.statusCode).toBe(401);
   });
 
   afterAll(async () => {
@@ -50,6 +67,7 @@ describe('CategoriesController (e2e)', () => {
     const createRes = await app.inject({
       method: 'POST',
       url: '/api/v1/categories',
+      headers: authHeaders,
       payload: {
         userId: testUserId,
         name: 'Supermercado y Despensa E2E',
@@ -73,6 +91,7 @@ describe('CategoriesController (e2e)', () => {
     const listRes = await app.inject({
       method: 'GET',
       url: `/api/v1/categories?userId=${testUserId}`,
+      headers: authHeaders,
     });
 
     expect(listRes.statusCode).toBe(200);
@@ -88,6 +107,7 @@ describe('CategoriesController (e2e)', () => {
     const getRes = await app.inject({
       method: 'GET',
       url: `/api/v1/categories/${categoryId}`,
+      headers: authHeaders,
     });
 
     expect(getRes.statusCode).toBe(200);
@@ -99,6 +119,7 @@ describe('CategoriesController (e2e)', () => {
     const updateRes = await app.inject({
       method: 'PUT',
       url: `/api/v1/categories/${categoryId}`,
+      headers: authHeaders,
       payload: {
         name: 'Restaurantes y Salidas E2E',
         type: 'EXPENSE',
@@ -115,6 +136,7 @@ describe('CategoriesController (e2e)', () => {
     const deleteRes = await app.inject({
       method: 'DELETE',
       url: `/api/v1/categories/${categoryId}`,
+      headers: authHeaders,
     });
 
     expect(deleteRes.statusCode).toBe(200);
@@ -125,8 +147,8 @@ describe('CategoriesController (e2e)', () => {
     const verifyGetRes = await app.inject({
       method: 'GET',
       url: `/api/v1/categories/${categoryId}`,
+      headers: authHeaders,
     });
-    expect(verifyGetRes.statusCode).toBe(200);
-    expect(JSON.parse(verifyGetRes.payload)).toBeNull();
+    expect(verifyGetRes.statusCode).toBe(404);
   });
 });

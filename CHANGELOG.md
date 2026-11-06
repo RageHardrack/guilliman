@@ -1,26 +1,85 @@
-# Changelog - Guilliman API & Bot
+# Changelog
 
-Todos los cambios notables en este proyecto serán documentados en este archivo siguiendo [Conventional Commits](https://www.conventionalcommits.org/).
+All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.2.0] - 2026-09-17
+## [Unreleased]
 
-### Características
-- **webhooks**: soporte para eventos de release de GitHub y publicación de changelogs en Discord (`feat(webhooks)`).
-- **discord**: constructor de embeds de release con notas de cambios y enlace a GitHub (`feat(discord)`).
-- **blog**: soporte de i18n con relaciones de idiomas en Notion y slugs traducidos (`feat(blog)`).
-- **goals**: adición de nivel de prioridad en metas de ahorro (`feat(goals)`).
-- **transactions**: script de migración histórica de tasas de cambio VES (`feat(transactions)`).
+### Added
 
-### Correcciones
-- **webhooks**: configuración limpia de parser de cuerpo en Fastify para webhooks de Shoutrrr/Watchtower (`fix(webhooks)`).
-- **server**: eliminación de colisiones de parsers urlencoded en Fastify (`fix(server)`).
+- **leon**: 11th edition catalog API, one stored package per faction with an index, a per-faction read, and an admin-only import that never deletes missing factions.
 
----
+### Changed
 
-## [v0.1.0] - 2026-08-28
+- **webhooks**: Watchtower notifications skip empty deployment sessions and detect failures precisely, so quiet deployments no longer post noise to Discord.
 
-### Características
-- Arquitectura Hexagonal en NestJS y Fastify.
-- Modelo de base de datos PostgreSQL 17 con Prisma ORM.
-- Notificaciones de despliegue en Discord mediante webhooks de GitHub Actions y Watchtower.
-- Documentación OpenAPI / Swagger en `/api/v1/docs`.
+## [0.4.2] - 2026-11-06
+
+### Fixed
+
+- **goals**: A savings goal's target date is now cleared when the update sends it as null.
+
+## [0.4.1] - 2026-11-06
+
+### Fixed
+
+- **accounts**: Every route resolves the owner from the JWT, so one user can no longer read or write another user's accounts.
+- **transactions**: Every route is scoped to the token user.
+- **budgets**: Every route is scoped to the token user.
+- **categories**: Every route is scoped to the token user.
+- **subscriptions**: Every route is scoped to the token user.
+- **goals**: Both the goal and any referenced account are ownership-checked on every route.
+- **loans**: Every route is scoped to the token user, and a payment that is missing or belongs to another user now answers the same 404.
+- **tax**: Requests naming a `userId` other than the token user's are rejected.
+
+## [0.4.0] - 2026-11-06
+
+### Added
+
+- **leon**: Isolated wargaming bounded context with its own JWT auth (`app: 'LEON'`), admin user management, and per-user army rosters.
+- **transaction-templates**: Per-user expense, income, and transfer templates for fast entry in Tique, ordered by most recently used.
+
+### Fixed
+
+- **leon**: Decorator metadata now uses type-only imports so the build stays clean.
+
+## [0.3.1] - 2026-09-26
+
+### Changed
+
+- **docs**: README carries the Built with Gentle-AI badge.
+
+## [0.3.0] - 2026-09-24
+
+### Added
+
+- **webhooks**: Releases can be published to a dedicated Discord changelog channel (`DISCORD_CHANGELOG_CHANNEL_ID`), falling back to the notifications channel when it is not configured.
+
+## [0.2.0] - 2026-09-17
+
+### Added
+
+- **subscriptions**: Payments can be recorded in a different currency than the subscription, with a custom exchange rate and the actual debited amount.
+
+## [0.1.0] - 2026-09-17
+
+### Added
+
+- **server**: Guilliman backend service initialized with NestJS, Fastify, Prisma and a CI/CD pipeline publishing a GHCR image.
+- **mcp**: Tique MCP server exposing financial and tax tools over stdio and SSE, restricted to active ADMIN users.
+- **exchange-rates**: Official SUNAT (USD→PEN) and BCV (USD→VES) rate sync on a daily 8pm Caracas cron.
+- **transactions**: Multi-currency transfers with exact balance recalculation, and a script to backfill historical VES rates on past transactions.
+- **categories**: `budgetGroup` classification for income and expense categories.
+- **goals**: Priority level on savings goals.
+- **accounts**: Account currency is immutable after creation.
+- **blog**: Multilanguage support through the Notion Languages relation and translated slugs.
+- **webhooks**: Watchtower deployment webhook with Discord embed notifications.
+- **discord**: Discord bot for GitHub Actions workflow-run notifications, a release webhook handler, and changelog embeds.
+
+### Fixed
+
+- **server**: Fastify accepts JSON, text, and urlencoded webhook payloads without duplicate parser registrations.
+- **webhooks**: Removed a redundant status from the Watchtower status union.
+- **transactions**: Account balances revert safely when a transaction is deleted.
+- **build**: Production entrypoint points to `dist/src/main.js` and the runner image copies `prisma.config.ts` for `db push`.
+- **prisma**: Datasource URL declared in `schema.prisma` so the container runtime can connect.
+- **ci**: Initial version resolution works when the repository has no tags, and the GHCR image is named `guilliman`.

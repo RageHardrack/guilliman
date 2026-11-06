@@ -1,4 +1,10 @@
 import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   Body,
   Controller,
   Delete,
@@ -6,21 +12,17 @@ import {
   Param,
   Post,
   Put,
-  Query,
+  UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
 
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { CreateBudgetDto } from '../dtos/create-budget.dto';
+import { CurrentUser } from '../../../auth/current-user.decorator';
 import { BudgetRepositoryPort } from '../../application/ports/budget.repository.port';
 
 @ApiTags('Budgets')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('budgets')
 export class BudgetsController {
   constructor(private readonly budgetRepository: BudgetRepositoryPort) {}
@@ -34,27 +36,29 @@ export class BudgetsController {
     description: 'Presupuesto configurado exitosamente',
   })
   @ApiResponse({ status: 400, description: 'Datos de presupuesto inválidos' })
-  async create(@Body() dto: CreateBudgetDto) {
-    const budget = await this.budgetRepository.create(dto);
+  async create(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: CreateBudgetDto,
+  ) {
+    // userId always comes from the JWT; any userId in the body is ignored.
+    const budget = await this.budgetRepository.create({
+      userId: user.userId,
+      categoryId: dto.categoryId,
+      amount: dto.amount,
+      currency: dto.currency,
+      period: dto.period,
+    });
     return budget.toJSON();
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar presupuestos por ID de usuario' })
-  @ApiQuery({
-    name: 'userId',
-    required: true,
-    description: 'ID del usuario propietario de los presupuestos',
-  })
+  @ApiOperation({ summary: 'Listar los presupuestos del usuario' })
   @ApiResponse({
     status: 200,
     description: 'Lista de presupuestos configurados',
   })
-  async findByUserId(@Query('userId') userId: string) {
-    if (!userId) {
-      return [];
-    }
-    const budgets = await this.budgetRepository.findByUserId(userId);
+  async findByUserId(@CurrentUser() user: { userId: string }) {
+    const budgets = await this.budgetRepository.findByUserId(user.userId);
     return budgets.map((b) => b.toJSON());
   }
 
@@ -62,9 +66,12 @@ export class BudgetsController {
   @ApiOperation({ summary: 'Obtener detalle de un presupuesto por ID' })
   @ApiResponse({ status: 200, description: 'Detalle del presupuesto' })
   @ApiResponse({ status: 404, description: 'Presupuesto no encontrado' })
-  async findById(@Param('id') id: string) {
-    const budget = await this.budgetRepository.findById(id);
-    return budget ? budget.toJSON() : null;
+  async findById(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    const budget = await this.budgetRepository.findById(id, user.userId);
+    return budget.toJSON();
   }
 
   @Put(':id')
@@ -76,6 +83,7 @@ export class BudgetsController {
   @ApiResponse({ status: 404, description: 'Presupuesto no encontrado' })
   async update(
     @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
     @Body()
     dto: {
       amount?: number;
@@ -83,7 +91,11 @@ export class BudgetsController {
       period?: string;
     },
   ) {
-    const budget = await this.budgetRepository.update(id, dto);
+    const budget = await this.budgetRepository.update(id, user.userId, {
+      amount: dto.amount,
+      currency: dto.currency,
+      period: dto.period,
+    });
     return budget.toJSON();
   }
 
@@ -93,8 +105,12 @@ export class BudgetsController {
     status: 200,
     description: 'Presupuesto eliminado exitosamente',
   })
-  async delete(@Param('id') id: string) {
-    const success = await this.budgetRepository.delete(id);
-    return { success };
+  @ApiResponse({ status: 404, description: 'Presupuesto no encontrado' })
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    await this.budgetRepository.delete(id, user.userId);
+    return { success: true };
   }
 }

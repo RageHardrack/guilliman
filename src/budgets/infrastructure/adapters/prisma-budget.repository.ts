@@ -1,20 +1,38 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { Budget } from '../../domain/budget.entity';
-import { BudgetRepositoryPort } from '../../application/ports/budget.repository.port';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
+import {
+  BudgetRepositoryPort,
+  CreateBudgetData,
+  UpdateBudgetData,
+} from '../../application/ports/budget.repository.port';
+
+type BudgetRow = {
+  id: string;
+  userId: string;
+  categoryId: string;
+  amount: number;
+  currency: string;
+  period: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 @Injectable()
 export class PrismaBudgetRepository implements BudgetRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    userId: string;
-    categoryId: string;
-    amount: number;
-    currency?: string;
-    period?: string;
-  }): Promise<Budget> {
+  async create(data: CreateBudgetData): Promise<Budget> {
+    // The upsert keys on userId_categoryId, so the category must belong to
+    // the token user before anything is written: attaching a foreign
+    // category would overwrite that user's budget for the category.
+    await this.assertCategoryOwned(data.categoryId, data.userId);
+
     const created = await this.prisma.budget.upsert({
       where: {
         userId_categoryId: {
@@ -36,16 +54,7 @@ export class PrismaBudgetRepository implements BudgetRepositoryPort {
       },
     });
 
-    return new Budget({
-      id: created.id,
-      userId: created.userId,
-      categoryId: created.categoryId,
-      amount: created.amount,
-      currency: created.currency,
-      period: created.period,
-      createdAt: created.createdAt,
-      updatedAt: created.updatedAt,
-    });
+    return this.toDomain(created);
   }
 
   async findByUserId(userId: string): Promise<Budget[]> {
@@ -54,38 +63,11 @@ export class PrismaBudgetRepository implements BudgetRepositoryPort {
       orderBy: { createdAt: 'desc' },
     });
 
-    return records.map(
-      (r) =>
-        new Budget({
-          id: r.id,
-          userId: r.userId,
-          categoryId: r.categoryId,
-          amount: r.amount,
-          currency: r.currency,
-          period: r.period,
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        }),
-    );
+    return records.map((record) => this.toDomain(record));
   }
 
-  async findById(id: string): Promise<Budget | null> {
-    const record = await this.prisma.budget.findUnique({
-      where: { id },
-    });
-
-    if (!record) return null;
-
-    return new Budget({
-      id: record.id,
-      userId: record.userId,
-      categoryId: record.categoryId,
-      amount: record.amount,
-      currency: record.currency,
-      period: record.period,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-    });
+  async findById(id: string, userId: string): Promise<Budget> {
+    return this.toDomain(await this.getOwnedRow(id, userId));
   }
 
   async findByUserAndCategory(
@@ -103,26 +85,16 @@ export class PrismaBudgetRepository implements BudgetRepositoryPort {
 
     if (!record) return null;
 
-    return new Budget({
-      id: record.id,
-      userId: record.userId,
-      categoryId: record.categoryId,
-      amount: record.amount,
-      currency: record.currency,
-      period: record.period,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-    });
+    return this.toDomain(record);
   }
 
   async update(
     id: string,
-    data: Partial<{
-      amount: number;
-      currency: string;
-      period: string;
-    }>,
+    userId: string,
+    data: UpdateBudgetData,
   ): Promise<Budget> {
+    await this.getOwnedRow(id, userId);
+
     const updated = await this.prisma.budget.update({
       where: { id },
       data: {
@@ -132,26 +104,52 @@ export class PrismaBudgetRepository implements BudgetRepositoryPort {
       },
     });
 
-    return new Budget({
-      id: updated.id,
-      userId: updated.userId,
-      categoryId: updated.categoryId,
-      amount: updated.amount,
-      currency: updated.currency,
-      period: updated.period,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-    });
+    return this.toDomain(updated);
   }
 
-  async delete(id: string): Promise<boolean> {
-    try {
-      await this.prisma.budget.delete({
-        where: { id },
-      });
-      return true;
-    } catch {
-      return false;
+  async delete(id: string, userId: string): Promise<void> {
+    await this.getOwnedRow(id, userId);
+    await this.prisma.budget.delete({ where: { id } });
+  }
+
+  /**
+   * Reads by { id, userId } so foreign and missing budgets both look
+   * absent: the caller gets 404 and no mutation is attempted.
+   */
+  private async getOwnedRow(id: string, userId: string): Promise<BudgetRow> {
+    const row = await this.prisma.budget.findFirst({
+      where: { id, userId },
+    });
+    if (!row) {
+      throw new NotFoundException('Budget not found');
     }
+    return row;
+  }
+
+  private async assertCategoryOwned(
+    categoryId: string,
+    userId: string,
+  ): Promise<void> {
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, userId },
+    });
+    if (!category) {
+      throw new BadRequestException(
+        'Referenced category does not belong to the user',
+      );
+    }
+  }
+
+  private toDomain(row: BudgetRow): Budget {
+    return new Budget({
+      id: row.id,
+      userId: row.userId,
+      categoryId: row.categoryId,
+      amount: row.amount,
+      currency: row.currency,
+      period: row.period,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    });
   }
 }

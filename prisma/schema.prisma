@@ -347,3 +347,23 @@ model LeonRoster {
 
   @@map("leon_rosters")
 }
+
+/// One faction package of the 11th edition catalog, as produced by Leon's
+/// build-catalog pipeline. The payload is the whole `CatalogPackage` the client
+/// imports, so the API stays a passthrough and the domain logic stays in Leon.
+model LeonCatalogFaction {
+  id          String   @id
+  name        String
+  gameSystem  String
+  edition     String
+  version     String
+  updatedDate String
+  units       Int
+  detachments Int
+  payload     Json
+  syncedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("leon_catalog_factions")
+}

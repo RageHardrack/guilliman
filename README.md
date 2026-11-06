@@ -176,6 +176,18 @@ Movimientos pre-hechos por usuario (gasto, ingreso o transferencia) para el regi
 
 Reglas validadas en el dominio (respuesta 400 si se incumplen): `type` es `EXPENSE`, `INCOME` o `TRANSFER`; `TRANSFER` exige `destinationAccountId` distinto de `accountId`; `EXPENSE`/`INCOME` no llevan cuenta destino; `defaultAmount` es opcional y, si viene, debe ser un número mayor a 0; `accountId` y `categoryId` deben pertenecer al usuario. Las transacciones se siguen creando con `POST /transactions`.
 
+### Leon 11th edition catalog (`/api/v1/leon/catalog`)
+
+Stores one catalog package per faction, produced by Leon's `build-catalog` pipeline. The API is a passthrough: it validates the package shape and keeps the whole package as JSON (`leon_catalog_factions`), while the game logic stays in Leon. Routes use the isolated Leon JWT (claim `app: 'LEON'`).
+
+| Method | Route                             | Access      | Description                                                         |
+| ------ | --------------------------------- | ----------- | ------------------------------------------------------------------- |
+| GET    | `/leon/catalog`                   | Leon JWT    | Index of stored factions with their metadata and `syncedAt`         |
+| GET    | `/leon/catalog/factions/:id`      | Leon JWT    | One faction package (`:id` is the Wahapedia faction code, e.g. `SM`) |
+| POST   | `/leon/catalog/import`            | Leon ADMIN  | Upsert faction packages; it never deletes factions that are missing |
+
+Leon's `scripts/publish-catalog.ts` uploads one faction per request and reads `LEON_API_BASE_URL`, `LEON_ADMIN_EMAIL` and `LEON_ADMIN_PASSWORD`. Create that admin with `bun run scripts/create-leon-admin.ts`.
+
 ---
 
 ## 🚀 Inicio Rápido (Desarrollo Local)

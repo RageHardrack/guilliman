@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
+- **discord**: release announcements are published in Spanish, using the `## Resumen (ES)` section of the release notes when present.
 - **webhooks**: Watchtower notifications skip empty deployment sessions and detect failures precisely, so quiet deployments no longer post noise to Discord.
 
 ## [0.4.2] - 2026-11-06

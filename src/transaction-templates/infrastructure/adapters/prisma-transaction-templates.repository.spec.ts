@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach, vi, type Mock } from 'vitest';
 
 import { TransactionTemplate } from '../../domain/transaction-template.entity';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
@@ -40,8 +40,17 @@ interface TemplateDelegateDouble {
   delete: ReturnType<typeof vi.fn>;
 }
 
+interface OwnerRow {
+  id: string;
+  userId: string;
+}
+
 interface OwnerCheckDelegateDouble {
-  findFirst: ReturnType<typeof vi.fn>;
+  findFirst: Mock<
+    (args: {
+      where: { id: string; userId: string };
+    }) => Promise<OwnerRow | null>
+  >;
 }
 
 interface PrismaDouble {

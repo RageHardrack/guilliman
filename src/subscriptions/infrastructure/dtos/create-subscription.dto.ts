@@ -3,11 +3,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { RecurrenceFrequency } from '../../domain/subscription.entity';
 
 export class CreateSubscriptionDto {
-  @ApiProperty({
-    description: 'ID del usuario propietario de la suscripción',
+  @ApiPropertyOptional({
+    deprecated: true,
+    description:
+      'Ignorado: el propietario de la suscripción sale siempre del token JWT. Se sigue aceptando por compatibilidad con clientes existentes',
     example: 'a1b2c3d4-e5f6-7890-1234-56789abcdef0',
   })
-  userId!: string;
+  userId?: string;
 
   @ApiProperty({
     description: 'ID de la cuenta bancaria donde se debita la suscripción',

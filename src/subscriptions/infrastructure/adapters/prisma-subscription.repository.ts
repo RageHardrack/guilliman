@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import {
@@ -6,26 +10,38 @@ import {
   Subscription,
 } from '../../domain/subscription.entity';
 import {
+  CreateSubscriptionData,
   RecordPaymentOptions,
   SubscriptionRepositoryPort,
+  UpdateSubscriptionData,
 } from '../../application/ports/subscription.repository.port';
+
+type SubscriptionRow = {
+  id: string;
+  userId: string;
+  accountId: string;
+  categoryId: string | null;
+  name: string;
+  amount: number;
+  currency: string;
+  frequency: RecurrenceFrequency;
+  customIntervalDays: number | null;
+  nextDueDate: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 @Injectable()
 export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    userId: string;
-    accountId: string;
-    categoryId?: string | null;
-    name: string;
-    amount: number;
-    currency?: string;
-    frequency?: RecurrenceFrequency;
-    customIntervalDays?: number | null;
-    nextDueDate: Date;
-    isActive?: boolean;
-  }): Promise<Subscription> {
+  async create(data: CreateSubscriptionData): Promise<Subscription> {
+    await this.assertReferencesOwned(
+      { accountId: data.accountId, categoryId: data.categoryId },
+      data.userId,
+    );
+
     const created = await this.prisma.subscription.create({
       data: {
         userId: data.userId,
@@ -34,28 +50,14 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
         name: data.name,
         amount: data.amount,
         currency: data.currency || 'USD',
-        frequency: (data.frequency as any) || 'MONTHLY',
-        customIntervalDays: data.customIntervalDays,
+        frequency: data.frequency || 'MONTHLY',
+        customIntervalDays: data.customIntervalDays ?? null,
         nextDueDate: data.nextDueDate,
         isActive: data.isActive !== undefined ? data.isActive : true,
       },
     });
 
-    return new Subscription({
-      id: created.id,
-      userId: created.userId,
-      accountId: created.accountId,
-      categoryId: created.categoryId,
-      name: created.name,
-      amount: created.amount,
-      currency: created.currency,
-      frequency: created.frequency,
-      customIntervalDays: created.customIntervalDays,
-      nextDueDate: created.nextDueDate,
-      isActive: created.isActive,
-      createdAt: created.createdAt,
-      updatedAt: created.updatedAt,
-    });
+    return this.toDomain(created);
   }
 
   async findByUserId(userId: string): Promise<Subscription[]> {
@@ -64,64 +66,30 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
       orderBy: { nextDueDate: 'asc' },
     });
 
-    return records.map(
-      (r) =>
-        new Subscription({
-          id: r.id,
-          userId: r.userId,
-          accountId: r.accountId,
-          categoryId: r.categoryId,
-          name: r.name,
-          amount: r.amount,
-          currency: r.currency,
-          frequency: r.frequency,
-          customIntervalDays: r.customIntervalDays,
-          nextDueDate: r.nextDueDate,
-          isActive: r.isActive,
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        }),
-    );
+    return records.map((r) => this.toDomain(r));
   }
 
-  async findById(id: string): Promise<Subscription | null> {
-    const record = await this.prisma.subscription.findUnique({
-      where: { id },
-    });
-
-    if (!record) return null;
-
-    return new Subscription({
-      id: record.id,
-      userId: record.userId,
-      accountId: record.accountId,
-      categoryId: record.categoryId,
-      name: record.name,
-      amount: record.amount,
-      currency: record.currency,
-      frequency: record.frequency,
-      customIntervalDays: record.customIntervalDays,
-      nextDueDate: record.nextDueDate,
-      isActive: record.isActive,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-    });
+  async findById(id: string, userId: string): Promise<Subscription> {
+    return this.toDomain(await this.getOwnedRow(id, userId));
   }
 
   async update(
     id: string,
-    data: Partial<{
-      accountId: string;
-      categoryId?: string | null;
-      name: string;
-      amount: number;
-      currency: string;
-      frequency: RecurrenceFrequency;
-      customIntervalDays?: number | null;
-      nextDueDate: Date;
-      isActive: boolean;
-    }>,
+    userId: string,
+    data: UpdateSubscriptionData,
   ): Promise<Subscription> {
+    await this.getOwnedRow(id, userId);
+
+    if (data.accountId !== undefined || data.categoryId !== undefined) {
+      await this.assertReferencesOwned(
+        {
+          accountId: data.accountId,
+          categoryId: data.categoryId,
+        },
+        userId,
+      );
+    }
+
     const updated = await this.prisma.subscription.update({
       where: { id },
       data: {
@@ -130,7 +98,7 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
         ...(data.name && { name: data.name }),
         ...(data.amount !== undefined && { amount: data.amount }),
         ...(data.currency && { currency: data.currency }),
-        ...(data.frequency && { frequency: data.frequency as any }),
+        ...(data.frequency && { frequency: data.frequency }),
         ...(data.customIntervalDays !== undefined && {
           customIntervalDays: data.customIntervalDays,
         }),
@@ -139,31 +107,15 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
       },
     });
 
-    return new Subscription({
-      id: updated.id,
-      userId: updated.userId,
-      accountId: updated.accountId,
-      categoryId: updated.categoryId,
-      name: updated.name,
-      amount: updated.amount,
-      currency: updated.currency,
-      frequency: updated.frequency,
-      customIntervalDays: updated.customIntervalDays,
-      nextDueDate: updated.nextDueDate,
-      isActive: updated.isActive,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-    });
+    return this.toDomain(updated);
   }
 
   async recordPayment(
     id: string,
+    userId: string,
     options?: RecordPaymentOptions,
   ): Promise<{ subscription: Subscription; transactionId: string }> {
-    const subRecord = await this.findById(id);
-    if (!subRecord) {
-      throw new NotFoundException('Suscripción no encontrada');
-    }
+    const subRecord = this.toDomain(await this.getOwnedRow(id, userId));
 
     const txDate = options?.paymentDate || new Date();
     const nextDate = subRecord.calculateNextDueDate();
@@ -173,6 +125,10 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
         ? options.debitedAmount
         : subRecord.amount;
     const txNote = options?.note || `Pago recurrente: ${subRecord.name}`;
+
+    // The alternative account arrives from the body: it must belong to the
+    // token user before any transaction or balance movement is attempted.
+    await this.assertReferencesOwned({ accountId: targetAccountId }, userId);
 
     // Atomic transaction: create expense transaction, decrement account balance, advance due date
     const result = await this.prisma.$transaction(async (tx) => {
@@ -212,31 +168,65 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
 
     return {
       transactionId: result.transactionId,
-      subscription: new Subscription({
-        id: result.subscription.id,
-        userId: result.subscription.userId,
-        accountId: result.subscription.accountId,
-        categoryId: result.subscription.categoryId,
-        name: result.subscription.name,
-        amount: result.subscription.amount,
-        currency: result.subscription.currency,
-        frequency: result.subscription.frequency,
-        nextDueDate: result.subscription.nextDueDate,
-        isActive: result.subscription.isActive,
-        createdAt: result.subscription.createdAt,
-        updatedAt: result.subscription.updatedAt,
-      }),
+      subscription: this.toDomain(result.subscription),
     };
   }
 
-  async delete(id: string): Promise<boolean> {
-    try {
-      await this.prisma.subscription.delete({
-        where: { id },
-      });
-      return true;
-    } catch {
-      return false;
+  async delete(id: string, userId: string): Promise<void> {
+    await this.getOwnedRow(id, userId);
+    await this.prisma.subscription.delete({ where: { id } });
+  }
+
+  /**
+   * Reads by { id, userId } so foreign and missing subscriptions both look
+   * absent: the caller gets 404 and no mutation is attempted.
+   */
+  private async getOwnedRow(
+    id: string,
+    userId: string,
+  ): Promise<SubscriptionRow> {
+    const record = await this.prisma.subscription.findFirst({
+      where: { id, userId },
+    });
+    if (!record) {
+      throw new NotFoundException('Subscription not found');
     }
+    return record;
+  }
+
+  /**
+   * Validates referenced accounts and categories against the token owner
+   * before any write, so a foreign reference can never move a balance or
+   * save a row.
+   */
+  private async assertReferencesOwned(
+    references: { accountId?: string; categoryId?: string | null },
+    userId: string,
+  ): Promise<void> {
+    if (references.accountId) {
+      const account = await this.prisma.account.findFirst({
+        where: { id: references.accountId, userId },
+      });
+      if (!account) {
+        throw new BadRequestException(
+          'Referenced account does not belong to the user',
+        );
+      }
+    }
+
+    if (references.categoryId) {
+      const category = await this.prisma.category.findFirst({
+        where: { id: references.categoryId, userId },
+      });
+      if (!category) {
+        throw new BadRequestException(
+          'Referenced category does not belong to the user',
+        );
+      }
+    }
+  }
+
+  private toDomain(record: SubscriptionRow): Subscription {
+    return new Subscription(record);
   }
 }

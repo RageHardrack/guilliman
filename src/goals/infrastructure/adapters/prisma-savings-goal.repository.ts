@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import { Prisma } from '@prisma/client';
 
 import { SavingsGoal } from '../../domain/savings-goal.entity';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
@@ -8,26 +14,92 @@ import {
   UpdateSavingsGoalData,
 } from '../../application/ports/savings-goal.repository.port';
 
+/**
+ * Row shape the adapter reads and writes for `savings_goals`.
+ */
+type SavingsGoalRow = {
+  id: string;
+  userId: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  currency: string;
+  targetDate: Date | null;
+  color: string | null;
+  icon: string | null;
+  priority: string;
+  isCompleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/**
+ * The part of the client the ownership reads need, so the same guards run
+ * both on the plain client and inside a transaction.
+ */
+type GoalClient = Pick<
+  Prisma.TransactionClient,
+  'savingsGoal' | 'account' | 'transaction'
+>;
+
 @Injectable()
 export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  private toDomain(model: any): SavingsGoal {
+  private toDomain(row: SavingsGoalRow): SavingsGoal {
     return new SavingsGoal(
-      model.id,
-      model.userId,
-      model.name,
-      model.targetAmount,
-      model.currentAmount,
-      model.currency,
-      model.targetDate ? new Date(model.targetDate) : null,
-      model.color,
-      model.icon,
-      model.isCompleted,
-      new Date(model.createdAt),
-      new Date(model.updatedAt),
-      model.priority || 'MEDIUM',
+      row.id,
+      row.userId,
+      row.name,
+      row.targetAmount,
+      row.currentAmount,
+      row.currency,
+      row.targetDate ? new Date(row.targetDate) : null,
+      row.color,
+      row.icon,
+      row.isCompleted,
+      new Date(row.createdAt),
+      new Date(row.updatedAt),
+      row.priority || 'MEDIUM',
     );
+  }
+
+  /**
+   * Reads by { id, userId } so a foreign goal and a missing goal are
+   * indistinguishable: the caller gets 404 and no mutation is attempted.
+   */
+  private async getOwnedGoal(
+    client: GoalClient,
+    id: string,
+    userId: string,
+  ): Promise<SavingsGoalRow> {
+    const row = await client.savingsGoal.findFirst({
+      where: { id, userId },
+    });
+    if (!row) {
+      throw new NotFoundException(`Meta de ahorro con ID ${id} no encontrada.`);
+    }
+
+    return row;
+  }
+
+  /**
+   * An account the user does not own is rejected before any balance moves or
+   * any tracking transaction is created.
+   */
+  private async assertAccountOwned(
+    client: GoalClient,
+    accountId: string,
+    userId: string,
+  ): Promise<void> {
+    const account = await client.account.findFirst({
+      where: { id: accountId, userId },
+    });
+    if (!account) {
+      throw new BadRequestException(
+        'La cuenta indicada no pertenece al usuario.',
+      );
+    }
   }
 
   async create(data: CreateSavingsGoalData): Promise<SavingsGoal> {
@@ -59,21 +131,16 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
     return models.map((m) => this.toDomain(m));
   }
 
-  async findById(id: string): Promise<SavingsGoal | null> {
-    const model = await this.prisma.savingsGoal.findUnique({
-      where: { id },
-    });
-
-    return model ? this.toDomain(model) : null;
+  async findById(id: string, userId: string): Promise<SavingsGoal> {
+    return this.toDomain(await this.getOwnedGoal(this.prisma, id, userId));
   }
 
-  async update(id: string, data: UpdateSavingsGoalData): Promise<SavingsGoal> {
-    const existing = await this.prisma.savingsGoal.findUnique({
-      where: { id },
-    });
-    if (!existing) {
-      throw new NotFoundException(`Meta de ahorro con ID ${id} no encontrada.`);
-    }
+  async update(
+    id: string,
+    userId: string,
+    data: UpdateSavingsGoalData,
+  ): Promise<SavingsGoal> {
+    const existing = await this.getOwnedGoal(this.prisma, id, userId);
 
     const nextCurrent =
       data.currentAmount !== undefined
@@ -99,13 +166,8 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
     return this.toDomain(model);
   }
 
-  async delete(id: string): Promise<void> {
-    const existing = await this.prisma.savingsGoal.findUnique({
-      where: { id },
-    });
-    if (!existing) {
-      throw new NotFoundException(`Meta de ahorro con ID ${id} no encontrada.`);
-    }
+  async delete(id: string, userId: string): Promise<void> {
+    await this.getOwnedGoal(this.prisma, id, userId);
 
     await this.prisma.savingsGoal.delete({
       where: { id },
@@ -114,39 +176,32 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
 
   async deposit(
     id: string,
+    userId: string,
     amount: number,
     accountId?: string,
   ): Promise<SavingsGoal> {
     return this.prisma.$transaction(async (tx) => {
-      const goal = await tx.savingsGoal.findUnique({ where: { id } });
-      if (!goal) {
-        throw new NotFoundException(
-          `Meta de ahorro con ID ${id} no encontrada.`,
-        );
-      }
+      const goal = await this.getOwnedGoal(tx, id, userId);
 
       if (accountId) {
-        const account = await tx.account.findUnique({
-          where: { id: accountId },
-        });
-        if (account) {
-          await tx.account.update({
-            where: { id: accountId },
-            data: { balance: { decrement: amount } },
-          });
+        await this.assertAccountOwned(tx, accountId, userId);
 
-          // Create an expense or transfer tracking record
-          await tx.transaction.create({
-            data: {
-              userId: goal.userId,
-              accountId,
-              amount,
-              type: 'EXPENSE',
-              date: new Date(),
-              note: `Abono a meta: ${goal.name}`,
-            },
-          });
-        }
+        await tx.account.update({
+          where: { id: accountId },
+          data: { balance: { decrement: amount } },
+        });
+
+        // Create an expense or transfer tracking record
+        await tx.transaction.create({
+          data: {
+            userId,
+            accountId,
+            amount,
+            type: 'EXPENSE',
+            date: new Date(),
+            note: `Abono a meta: ${goal.name}`,
+          },
+        });
       }
 
       const updatedCurrent = goal.currentAmount + amount;
@@ -166,42 +221,35 @@ export class PrismaSavingsGoalRepository implements SavingsGoalRepositoryPort {
 
   async withdraw(
     id: string,
+    userId: string,
     amount: number,
     accountId?: string,
   ): Promise<SavingsGoal> {
     return this.prisma.$transaction(async (tx) => {
-      const goal = await tx.savingsGoal.findUnique({ where: { id } });
-      if (!goal) {
-        throw new NotFoundException(
-          `Meta de ahorro con ID ${id} no encontrada.`,
-        );
-      }
+      const goal = await this.getOwnedGoal(tx, id, userId);
 
       const updatedCurrent = Math.max(0, goal.currentAmount - amount);
       const isCompleted = updatedCurrent >= goal.targetAmount;
 
       if (accountId) {
-        const account = await tx.account.findUnique({
-          where: { id: accountId },
-        });
-        if (account) {
-          await tx.account.update({
-            where: { id: accountId },
-            data: { balance: { increment: amount } },
-          });
+        await this.assertAccountOwned(tx, accountId, userId);
 
-          // Create an income record from withdrawal
-          await tx.transaction.create({
-            data: {
-              userId: goal.userId,
-              accountId,
-              amount,
-              type: 'INCOME',
-              date: new Date(),
-              note: `Retiro de meta: ${goal.name}`,
-            },
-          });
-        }
+        await tx.account.update({
+          where: { id: accountId },
+          data: { balance: { increment: amount } },
+        });
+
+        // Create an income record from withdrawal
+        await tx.transaction.create({
+          data: {
+            userId,
+            accountId,
+            amount,
+            type: 'INCOME',
+            date: new Date(),
+            note: `Retiro de meta: ${goal.name}`,
+          },
+        });
       }
 
       const updated = await tx.savingsGoal.update({

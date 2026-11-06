@@ -4,6 +4,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 
+import { Prisma } from '@prisma/client';
+
 import { CreateLoanDto } from '../dtos/create-loan.dto';
 import { UpdateLoanDto } from '../dtos/update-loan.dto';
 import { CreateLoanPaymentDto } from '../dtos/create-loan-payment.dto';
@@ -16,11 +18,52 @@ import {
   LoanType,
 } from '../../domain/loan.entity';
 
+/**
+ * Row shapes the adapter reads from Prisma for `loans` and `loan_payments`.
+ */
+type LoanPaymentRow = {
+  id: string;
+  loanId: string;
+  amount: number;
+  date: Date;
+  accountId: string | null;
+  notes: string | null;
+  createdAt: Date;
+};
+
+type LoanRow = {
+  id: string;
+  userId: string;
+  personName: string;
+  type: string;
+  amount: number;
+  remainingAmount: number;
+  currency: string;
+  dueDate: Date | null;
+  status: string;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type LoanWithPaymentsRow = LoanRow & { payments?: LoanPaymentRow[] };
+
+type LoanAccountRow = { id: string; userId: string; balance: number };
+
+/**
+ * The part of the client the ownership reads and loan writes need, so the
+ * same guards run both on the plain client and inside a transaction.
+ */
+type LoanClient = Pick<
+  Prisma.TransactionClient,
+  'loan' | 'loanPayment' | 'account' | 'transaction'
+>;
+
 @Injectable()
 export class PrismaLoanRepository implements LoanRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  private mapPaymentToEntity(p: any): LoanPayment {
+  private mapPaymentToEntity(p: LoanPaymentRow): LoanPayment {
     return new LoanPayment(
       p.id,
       p.loanId,
@@ -32,7 +75,7 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
     );
   }
 
-  private mapToEntity(record: any): Loan {
+  private mapToEntity(record: LoanWithPaymentsRow): Loan {
     return new Loan(
       record.id,
       record.userId,
@@ -47,17 +90,69 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
       record.createdAt,
       record.updatedAt,
       record.payments
-        ? record.payments.map((p: any) => this.mapPaymentToEntity(p))
+        ? record.payments.map((p) => this.mapPaymentToEntity(p))
         : [],
     );
   }
 
-  async create(dto: CreateLoanDto): Promise<Loan> {
-    return await this.prisma.$transaction(async (tx: any) => {
+  /**
+   * Reads by { id, userId } so a foreign loan and a missing loan are
+   * indistinguishable: the caller gets 404 and no mutation is attempted.
+   */
+  private async getOwnedLoan(
+    client: LoanClient,
+    id: string,
+    userId: string,
+    withPayments = false,
+  ): Promise<LoanWithPaymentsRow> {
+    const row = withPayments
+      ? await client.loan.findFirst({
+          where: { id, userId },
+          include: { payments: { orderBy: { date: 'desc' } } },
+        })
+      : await client.loan.findFirst({ where: { id, userId } });
+
+    if (!row) {
+      throw new NotFoundException(`Loan with id ${id} not found`);
+    }
+
+    return row;
+  }
+
+  /**
+   * An account the user does not own is rejected before any balance moves,
+   * any payment is recorded or any tracking transaction is created.
+   */
+  private async assertAccountOwned(
+    client: LoanClient,
+    accountId: string,
+    userId: string,
+  ): Promise<LoanAccountRow> {
+    const account = await client.account.findFirst({
+      where: { id: accountId, userId },
+    });
+    if (!account) {
+      throw new BadRequestException(
+        'Referenced account does not belong to the user',
+      );
+    }
+
+    return account;
+  }
+
+  async create(userId: string, dto: CreateLoanDto): Promise<Loan> {
+    return await this.prisma.$transaction(async (tx) => {
+      // The owner always comes from the token; a userId in the body is
+      // ignored. The initial account is validated before any write, so a
+      // foreign account leaves no loan, no balance change and no transaction.
+      const initialAccount = dto.initialAccountId
+        ? await this.assertAccountOwned(tx, dto.initialAccountId, userId)
+        : null;
+
       const initialRemaining = dto.amount;
       const loanRecord = await tx.loan.create({
         data: {
-          userId: dto.userId,
+          userId,
           personName: dto.personName,
           type: dto.type,
           amount: dto.amount,
@@ -73,45 +168,39 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
       });
 
       // Si se vinculó una cuenta bancaria inicial, impactar el saldo contable
-      if (dto.initialAccountId) {
-        const account = await tx.account.findUnique({
-          where: { id: dto.initialAccountId },
-        });
-
-        if (account) {
-          if (dto.type === 'LENT') {
-            // Presté dinero -> Sale dinero de mi cuenta
-            await tx.account.update({
-              where: { id: account.id },
-              data: { balance: account.balance - dto.amount },
-            });
-            await tx.transaction.create({
-              data: {
-                userId: dto.userId,
-                accountId: account.id,
-                amount: dto.amount,
-                type: 'EXPENSE',
-                date: new Date(),
-                note: `Préstamo otorgado a ${dto.personName}`,
-              },
-            });
-          } else {
-            // Me prestaron dinero -> Entra dinero a mi cuenta
-            await tx.account.update({
-              where: { id: account.id },
-              data: { balance: account.balance + dto.amount },
-            });
-            await tx.transaction.create({
-              data: {
-                userId: dto.userId,
-                accountId: account.id,
-                amount: dto.amount,
-                type: 'INCOME',
-                date: new Date(),
-                note: `Préstamo recibido de ${dto.personName}`,
-              },
-            });
-          }
+      if (initialAccount) {
+        if (dto.type === 'LENT') {
+          // Presté dinero -> Sale dinero de mi cuenta
+          await tx.account.update({
+            where: { id: initialAccount.id },
+            data: { balance: initialAccount.balance - dto.amount },
+          });
+          await tx.transaction.create({
+            data: {
+              userId,
+              accountId: initialAccount.id,
+              amount: dto.amount,
+              type: 'EXPENSE',
+              date: new Date(),
+              note: `Préstamo otorgado a ${dto.personName}`,
+            },
+          });
+        } else {
+          // Me prestaron dinero -> Entra dinero a mi cuenta
+          await tx.account.update({
+            where: { id: initialAccount.id },
+            data: { balance: initialAccount.balance + dto.amount },
+          });
+          await tx.transaction.create({
+            data: {
+              userId,
+              accountId: initialAccount.id,
+              amount: dto.amount,
+              type: 'INCOME',
+              date: new Date(),
+              note: `Préstamo recibido de ${dto.personName}`,
+            },
+          });
         }
       }
 
@@ -119,17 +208,8 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
     });
   }
 
-  async findById(id: string): Promise<Loan | null> {
-    const record = await this.prisma.loan.findUnique({
-      where: { id },
-      include: {
-        payments: {
-          orderBy: { date: 'desc' },
-        },
-      },
-    });
-
-    if (!record) return null;
+  async findById(id: string, userId: string): Promise<Loan> {
+    const record = await this.getOwnedLoan(this.prisma, id, userId, true);
     return this.mapToEntity(record);
   }
 
@@ -144,16 +224,13 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
       orderBy: { createdAt: 'desc' },
     });
 
-    return records.map((r: any) => this.mapToEntity(r));
+    return records.map((r) => this.mapToEntity(r));
   }
 
-  async update(id: string, dto: UpdateLoanDto): Promise<Loan> {
-    const existing = await this.prisma.loan.findUnique({ where: { id } });
-    if (!existing) {
-      throw new NotFoundException(`Loan with id ${id} not found`);
-    }
+  async update(id: string, userId: string, dto: UpdateLoanDto): Promise<Loan> {
+    const existing = await this.getOwnedLoan(this.prisma, id, userId);
 
-    const dataToUpdate: any = {};
+    const dataToUpdate: Prisma.LoanUpdateInput = {};
     if (dto.personName !== undefined) dataToUpdate.personName = dto.personName;
     if (dto.currency !== undefined) dataToUpdate.currency = dto.currency;
     if (dto.dueDate !== undefined)
@@ -190,34 +267,31 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
     return this.mapToEntity(updated);
   }
 
-  async delete(id: string): Promise<void> {
-    const existing = await this.prisma.loan.findUnique({ where: { id } });
-    if (!existing) {
-      throw new NotFoundException(`Loan with id ${id} not found`);
-    }
+  async delete(id: string, userId: string): Promise<void> {
+    await this.getOwnedLoan(this.prisma, id, userId);
 
     await this.prisma.loan.delete({ where: { id } });
   }
 
   async addPayment(
     loanId: string,
+    userId: string,
     dto: CreateLoanPaymentDto,
   ): Promise<{ loan: Loan; payment: LoanPayment }> {
-    return await this.prisma.$transaction(async (tx: any) => {
-      const loan = await tx.loan.findUnique({
-        where: { id: loanId },
-        include: { payments: true },
-      });
-
-      if (!loan) {
-        throw new NotFoundException(`Loan with id ${loanId} not found`);
-      }
+    return await this.prisma.$transaction(async (tx) => {
+      const loan = await this.getOwnedLoan(tx, loanId, userId, true);
 
       if (dto.amount <= 0) {
         throw new BadRequestException(
           'Payment amount must be greater than zero',
         );
       }
+
+      // A foreign account is rejected before the payment or any balance
+      // movement is written, so nothing can change on a rejected payment.
+      const paymentAccount = dto.accountId
+        ? await this.assertAccountOwned(tx, dto.accountId, userId)
+        : null;
 
       const paymentDate = dto.date ? new Date(dto.date) : new Date();
       const paymentRecord = await tx.loanPayment.create({
@@ -255,45 +329,39 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
       });
 
       // Si se vinculó una cuenta bancaria, registrar la transacción contable
-      if (dto.accountId) {
-        const account = await tx.account.findUnique({
-          where: { id: dto.accountId },
-        });
-
-        if (account) {
-          if (loan.type === 'LENT') {
-            // Me abonaron dinero que presté -> Entra dinero a mi cuenta
-            await tx.account.update({
-              where: { id: account.id },
-              data: { balance: account.balance + dto.amount },
-            });
-            await tx.transaction.create({
-              data: {
-                userId: loan.userId,
-                accountId: account.id,
-                amount: dto.amount,
-                type: 'INCOME',
-                date: paymentDate,
-                note: `Abono recibido de préstamo a ${loan.personName}`,
-              },
-            });
-          } else {
-            // Yo aboné dinero a mi deuda -> Sale dinero de mi cuenta
-            await tx.account.update({
-              where: { id: account.id },
-              data: { balance: account.balance - dto.amount },
-            });
-            await tx.transaction.create({
-              data: {
-                userId: loan.userId,
-                accountId: account.id,
-                amount: dto.amount,
-                type: 'EXPENSE',
-                date: paymentDate,
-                note: `Pago de préstamo a ${loan.personName}`,
-              },
-            });
-          }
+      if (paymentAccount) {
+        if (loan.type === 'LENT') {
+          // Me abonaron dinero que presté -> Entra dinero a mi cuenta
+          await tx.account.update({
+            where: { id: paymentAccount.id },
+            data: { balance: paymentAccount.balance + dto.amount },
+          });
+          await tx.transaction.create({
+            data: {
+              userId,
+              accountId: paymentAccount.id,
+              amount: dto.amount,
+              type: 'INCOME',
+              date: paymentDate,
+              note: `Abono recibido de préstamo a ${loan.personName}`,
+            },
+          });
+        } else {
+          // Yo aboné dinero a mi deuda -> Sale dinero de mi cuenta
+          await tx.account.update({
+            where: { id: paymentAccount.id },
+            data: { balance: paymentAccount.balance - dto.amount },
+          });
+          await tx.transaction.create({
+            data: {
+              userId,
+              accountId: paymentAccount.id,
+              amount: dto.amount,
+              type: 'EXPENSE',
+              date: paymentDate,
+              note: `Pago de préstamo a ${loan.personName}`,
+            },
+          });
         }
       }
 
@@ -304,8 +372,8 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
     });
   }
 
-  async deletePayment(paymentId: string): Promise<Loan> {
-    return await this.prisma.$transaction(async (tx: any) => {
+  async deletePayment(paymentId: string, userId: string): Promise<Loan> {
+    return await this.prisma.$transaction(async (tx) => {
       const payment = await tx.loanPayment.findUnique({
         where: { id: paymentId },
       });
@@ -316,14 +384,9 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
         );
       }
 
-      const loan = await tx.loan.findUnique({
-        where: { id: payment.loanId },
-        include: { payments: true },
-      });
-
-      if (!loan) {
-        throw new NotFoundException(`Associated loan not found`);
-      }
+      // The payment is only reachable through its loan owner: a payment of a
+      // foreign loan answers 404 and leaves remainingAmount untouched.
+      const loan = await this.getOwnedLoan(tx, payment.loanId, userId, true);
 
       await tx.loanPayment.delete({ where: { id: paymentId } });
 

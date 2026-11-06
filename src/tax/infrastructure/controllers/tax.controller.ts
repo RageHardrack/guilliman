@@ -7,6 +7,7 @@ import {
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -16,6 +17,7 @@ import {
 
 import { TaxService } from '../../tax.service';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { CurrentUser } from '../../../auth/current-user.decorator';
 import { UpdateTaxProfileDto } from '../dtos/update-tax-profile.dto';
 
 @ApiTags('Tax (Impuestos & SUNAT)')
@@ -29,7 +31,11 @@ export class TaxController {
   @ApiOperation({
     summary: 'Obtener configuración del perfil tributario del usuario',
   })
-  async getProfile(@Param('userId') userId: string) {
+  async getProfile(
+    @CurrentUser() user: { userId: string },
+    @Param('userId') userId: string,
+  ) {
+    this.assertRouteUser(user, userId);
     return this.taxService.getProfile(userId);
   }
 
@@ -38,9 +44,11 @@ export class TaxController {
     summary: 'Actualizar perfil tributario (activar/desactivar, país, RUC)',
   })
   async updateProfile(
+    @CurrentUser() user: { userId: string },
     @Param('userId') userId: string,
     @Body() dto: UpdateTaxProfileDto,
   ) {
+    this.assertRouteUser(user, userId);
     return this.taxService.updateProfile(userId, dto);
   }
 
@@ -51,9 +59,11 @@ export class TaxController {
   })
   @ApiQuery({ name: 'year', required: false, type: Number, example: 2026 })
   async getProjection(
+    @CurrentUser() user: { userId: string },
     @Param('userId') userId: string,
     @Query('year') year?: string,
   ) {
+    this.assertRouteUser(user, userId);
     const fiscalYear = year ? parseInt(year, 10) : new Date().getFullYear();
     return this.taxService.calculateProjection(userId, fiscalYear);
   }
@@ -64,10 +74,25 @@ export class TaxController {
   })
   @ApiQuery({ name: 'year', required: false, type: Number, example: 2026 })
   async getDeductibles(
+    @CurrentUser() user: { userId: string },
     @Param('userId') userId: string,
     @Query('year') year?: string,
   ) {
+    this.assertRouteUser(user, userId);
     const fiscalYear = year ? parseInt(year, 10) : new Date().getFullYear();
     return this.taxService.getDeductibleItems(userId, fiscalYear);
+  }
+
+  /**
+   * The :userId in the route is kept for compatibility; it may only ever
+   * point at the token user, otherwise the request is refused with 403 and
+   * the service is never called.
+   */
+  private assertRouteUser(user: { userId: string }, userId: string): void {
+    if (userId !== user.userId) {
+      throw new ForbiddenException(
+        'The userId in the route does not match the authenticated user',
+      );
+    }
   }
 }

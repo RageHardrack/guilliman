@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-06
+
 ### Added
 
 - **leon**: 11th edition catalog API, one stored package per faction with an index, a per-faction read, and an admin-only import that never deletes missing factions.
@@ -12,6 +14,8 @@ All notable changes to this project are documented in this file. The format foll
 
 - **discord**: release announcements are published in Spanish, using the `## Resumen (ES)` section of the release notes when present.
 - **webhooks**: Watchtower notifications skip empty deployment sessions and detect failures precisely, so quiet deployments no longer post noise to Discord.
+- **ci**: releases are published from the CHANGELOG when a release PR from `dev` merges into `main`.
+- **docs**: README and CHANGELOG are now in English.
 
 ## [0.4.2] - 2026-11-06
 

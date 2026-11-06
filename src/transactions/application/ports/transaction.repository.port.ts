@@ -24,13 +24,27 @@ export interface CreateTransactionData {
   taxDeductionType?: TaxDeductionType;
 }
 
+/**
+ * Partial replacement body for PUT (same shape as create, minus ownership).
+ */
+export type UpdateTransactionData = Partial<
+  Omit<CreateTransactionData, 'userId'>
+>;
+
+/**
+ * Every method is scoped by userId: a transaction that does not exist or
+ * belongs to another user must be indistinguishable (404, no mutation), and
+ * a referenced account or category that is not owned rejects the write with
+ * 400 before any balance moves.
+ */
 export abstract class TransactionRepositoryPort {
   abstract create(data: CreateTransactionData): Promise<Transaction>;
-  abstract findById(id: string): Promise<Transaction | null>;
+  abstract findById(id: string, userId: string): Promise<Transaction>;
   abstract findByUserId(userId: string): Promise<Transaction[]>;
   abstract update(
     id: string,
-    data: Partial<Omit<CreateTransactionData, 'userId'>>,
+    userId: string,
+    data: UpdateTransactionData,
   ): Promise<Transaction>;
-  abstract delete(id: string): Promise<boolean>;
+  abstract delete(id: string, userId: string): Promise<boolean>;
 }

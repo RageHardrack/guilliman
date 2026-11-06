@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { Transaction as PrismaTransaction } from '@prisma/client';
 
@@ -7,6 +11,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma/prisma.se
 import {
   CreateTransactionData,
   TransactionRepositoryPort,
+  UpdateTransactionData,
 } from '../../application/ports/transaction.repository.port';
 
 @Injectable()
@@ -14,6 +19,15 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateTransactionData): Promise<Transaction> {
+    // Ownership of every referenced account and the category is verified
+    // before the transaction: a foreign reference must never create a row
+    // nor move a balance.
+    await this.assertReferencesOwned(data.userId, {
+      accountId: data.accountId,
+      destinationAccountId: data.destinationAccountId,
+      categoryId: data.categoryId,
+    });
+
     return await this.prisma.$transaction(async (tx) => {
       const created = await tx.transaction.create({
         data: {
@@ -26,14 +40,14 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
             data.destinationAmount ??
             (data.type === 'TRANSFER' ? data.amount : null),
           exchangeRate: data.exchangeRate ?? null,
-          type: data.type as any,
+          type: data.type,
           date: data.date ?? new Date(),
           note: data.note,
-          taxCategory: (data.taxCategory as any) || 'NONE',
-          taxDocumentType: (data.taxDocumentType as any) || 'NONE',
+          taxCategory: data.taxCategory || 'NONE',
+          taxDocumentType: data.taxDocumentType || 'NONE',
           taxDocumentNumber: data.taxDocumentNumber,
           taxWithholdingAmount: data.taxWithholdingAmount ?? 0,
-          taxDeductionType: (data.taxDeductionType as any) || 'NONE',
+          taxDeductionType: data.taxDeductionType || 'NONE',
         },
       });
 
@@ -64,9 +78,8 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
     });
   }
 
-  async findById(id: string): Promise<Transaction | null> {
-    const raw = await this.prisma.transaction.findUnique({ where: { id } });
-    return raw ? this.mapToDomain(raw) : null;
+  async findById(id: string, userId: string): Promise<Transaction> {
+    return this.mapToDomain(await this.getOwnedRow(id, userId));
   }
 
   async findByUserId(userId: string): Promise<Transaction[]> {
@@ -79,14 +92,19 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
 
   async update(
     id: string,
-    data: Partial<Omit<CreateTransactionData, 'userId'>>,
+    userId: string,
+    data: UpdateTransactionData,
   ): Promise<Transaction> {
-    const existing = await this.prisma.transaction.findUnique({
-      where: { id },
+    const existing = await this.getOwnedRow(id, userId);
+
+    // Verify the new references before reverting or applying any balance:
+    // a foreign account or category must leave the row and the balances
+    // untouched.
+    await this.assertReferencesOwned(userId, {
+      accountId: data.accountId,
+      destinationAccountId: data.destinationAccountId,
+      categoryId: data.categoryId,
     });
-    if (!existing) {
-      throw new Error(`Transaction with id ${id} not found`);
-    }
 
     return await this.prisma.$transaction(async (tx) => {
       // 1. Revert previous transaction's balance effect
@@ -133,14 +151,14 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
           ...(data.exchangeRate !== undefined && {
             exchangeRate: data.exchangeRate,
           }),
-          ...(data.type !== undefined && { type: data.type as any }),
+          ...(data.type !== undefined && { type: data.type }),
           ...(data.date !== undefined && { date: data.date }),
           ...(data.note !== undefined && { note: data.note }),
           ...(data.taxCategory !== undefined && {
-            taxCategory: data.taxCategory as any,
+            taxCategory: data.taxCategory,
           }),
           ...(data.taxDocumentType !== undefined && {
-            taxDocumentType: data.taxDocumentType as any,
+            taxDocumentType: data.taxDocumentType,
           }),
           ...(data.taxDocumentNumber !== undefined && {
             taxDocumentNumber: data.taxDocumentNumber,
@@ -149,7 +167,7 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
             taxWithholdingAmount: data.taxWithholdingAmount,
           }),
           ...(data.taxDeductionType !== undefined && {
-            taxDeductionType: data.taxDeductionType as any,
+            taxDeductionType: data.taxDeductionType,
           }),
         },
       });
@@ -181,66 +199,120 @@ export class PrismaTransactionRepository implements TransactionRepositoryPort {
     });
   }
 
-  async delete(id: string): Promise<boolean> {
-    try {
-      const existing = await this.prisma.transaction.findUnique({
-        where: { id },
-      });
-      if (!existing) return false;
+  async delete(id: string, userId: string): Promise<boolean> {
+    const existing = await this.getOwnedRow(id, userId);
 
-      await this.prisma.$transaction(async (tx) => {
-        // Revert balance changes safely if accounts exist
-        if (existing.type === 'INCOME') {
-          const acc = await tx.account.findUnique({
+    await this.prisma.$transaction(async (tx) => {
+      // Revert balance changes safely if accounts exist
+      if (existing.type === 'INCOME') {
+        const acc = await tx.account.findUnique({
+          where: { id: existing.accountId },
+        });
+        if (acc) {
+          await tx.account.update({
             where: { id: existing.accountId },
+            data: { balance: { decrement: existing.amount } },
           });
-          if (acc) {
-            await tx.account.update({
-              where: { id: existing.accountId },
-              data: { balance: { decrement: existing.amount } },
-            });
-          }
-        } else if (existing.type === 'EXPENSE') {
-          const acc = await tx.account.findUnique({
-            where: { id: existing.accountId },
-          });
-          if (acc) {
-            await tx.account.update({
-              where: { id: existing.accountId },
-              data: { balance: { increment: existing.amount } },
-            });
-          }
-        } else if (
-          existing.type === 'TRANSFER' &&
-          existing.destinationAccountId
-        ) {
-          const prevDestAmount = existing.destinationAmount ?? existing.amount;
-          const srcAcc = await tx.account.findUnique({
-            where: { id: existing.accountId },
-          });
-          if (srcAcc) {
-            await tx.account.update({
-              where: { id: existing.accountId },
-              data: { balance: { increment: existing.amount } },
-            });
-          }
-          const destAcc = await tx.account.findUnique({
-            where: { id: existing.destinationAccountId },
-          });
-          if (destAcc) {
-            await tx.account.update({
-              where: { id: existing.destinationAccountId },
-              data: { balance: { decrement: prevDestAmount } },
-            });
-          }
         }
+      } else if (existing.type === 'EXPENSE') {
+        const acc = await tx.account.findUnique({
+          where: { id: existing.accountId },
+        });
+        if (acc) {
+          await tx.account.update({
+            where: { id: existing.accountId },
+            data: { balance: { increment: existing.amount } },
+          });
+        }
+      } else if (
+        existing.type === 'TRANSFER' &&
+        existing.destinationAccountId
+      ) {
+        const prevDestAmount = existing.destinationAmount ?? existing.amount;
+        const srcAcc = await tx.account.findUnique({
+          where: { id: existing.accountId },
+        });
+        if (srcAcc) {
+          await tx.account.update({
+            where: { id: existing.accountId },
+            data: { balance: { increment: existing.amount } },
+          });
+        }
+        const destAcc = await tx.account.findUnique({
+          where: { id: existing.destinationAccountId },
+        });
+        if (destAcc) {
+          await tx.account.update({
+            where: { id: existing.destinationAccountId },
+            data: { balance: { decrement: prevDestAmount } },
+          });
+        }
+      }
 
-        await tx.transaction.delete({ where: { id } });
+      await tx.transaction.delete({ where: { id } });
+    });
+
+    return true;
+  }
+
+  /**
+   * Reads by { id, userId } so foreign and missing transactions both look
+   * absent: the caller gets 404 and no balance is reverted or applied.
+   */
+  private async getOwnedRow(
+    id: string,
+    userId: string,
+  ): Promise<PrismaTransaction> {
+    const row = await this.prisma.transaction.findFirst({
+      where: { id, userId },
+    });
+    if (!row) {
+      throw new NotFoundException('Transaction not found');
+    }
+    return row;
+  }
+
+  /**
+   * Rejects with 400 any provided reference that is not a row owned by the
+   * token user. Runs before every write, so a rejected payload can never
+   * create a transaction nor move a balance.
+   */
+  private async assertReferencesOwned(
+    userId: string,
+    references: {
+      accountId?: string | null;
+      destinationAccountId?: string | null;
+      categoryId?: string | null;
+    },
+  ): Promise<void> {
+    const accountRefs = [
+      { id: references.accountId, kind: 'account' },
+      { id: references.destinationAccountId, kind: 'destination account' },
+    ];
+
+    for (const reference of accountRefs) {
+      if (!reference.id) {
+        continue;
+      }
+      const found = await this.prisma.account.findFirst({
+        where: { id: reference.id, userId },
       });
+      if (!found) {
+        throw new BadRequestException(
+          `Referenced ${reference.kind} does not belong to the user`,
+        );
+      }
+    }
 
-      return true;
-    } catch {
-      return false;
+    if (references.categoryId) {
+      const category = await this.prisma.category.findFirst({
+        where: { id: references.categoryId, userId },
+      });
+      if (!category) {
+        throw new BadRequestException(
+          'Referenced category does not belong to the user',
+        );
+      }
     }
   }
 

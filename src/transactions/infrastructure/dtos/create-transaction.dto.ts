@@ -5,7 +5,8 @@ import type { TransactionType } from '../../domain/transaction.entity';
 export class CreateTransactionDto {
   @ApiProperty({
     example: 'd8c48a73-98fe-4a4b-97e3-059adfbff04a',
-    description: 'ID del usuario propietario',
+    description: 'Ignorado: el propietario siempre sale del token JWT',
+    deprecated: true,
   })
   userId: string;
 

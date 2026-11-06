@@ -99,18 +99,27 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
    * Reads by { id, userId } so a foreign loan and a missing loan are
    * indistinguishable: the caller gets 404 and no mutation is attempted.
    */
+  private async findOwnedLoan(
+    client: LoanClient,
+    id: string,
+    userId: string,
+    withPayments = false,
+  ): Promise<LoanWithPaymentsRow | null> {
+    return withPayments
+      ? await client.loan.findFirst({
+          where: { id, userId },
+          include: { payments: { orderBy: { date: 'desc' } } },
+        })
+      : await client.loan.findFirst({ where: { id, userId } });
+  }
+
   private async getOwnedLoan(
     client: LoanClient,
     id: string,
     userId: string,
     withPayments = false,
   ): Promise<LoanWithPaymentsRow> {
-    const row = withPayments
-      ? await client.loan.findFirst({
-          where: { id, userId },
-          include: { payments: { orderBy: { date: 'desc' } } },
-        })
-      : await client.loan.findFirst({ where: { id, userId } });
+    const row = await this.findOwnedLoan(client, id, userId, withPayments);
 
     if (!row) {
       throw new NotFoundException(`Loan with id ${id} not found`);
@@ -378,15 +387,18 @@ export class PrismaLoanRepository implements LoanRepositoryPort {
         where: { id: paymentId },
       });
 
-      if (!payment) {
+      // The payment is only reachable through its loan owner: a payment of a
+      // foreign loan answers the same 404 as a missing one, without naming
+      // the foreign loan, and leaves remainingAmount untouched.
+      const loan = payment
+        ? await this.findOwnedLoan(tx, payment.loanId, userId, true)
+        : null;
+
+      if (!payment || !loan) {
         throw new NotFoundException(
           `Loan payment with id ${paymentId} not found`,
         );
       }
-
-      // The payment is only reachable through its loan owner: a payment of a
-      // foreign loan answers 404 and leaves remainingAmount untouched.
-      const loan = await this.getOwnedLoan(tx, payment.loanId, userId, true);
 
       await tx.loanPayment.delete({ where: { id: paymentId } });
 

@@ -139,7 +139,10 @@ describe('PrismaAccountRepository', () => {
 
     it('update on an owned id writes only the provided fields', async () => {
       prisma.account.update.mockImplementation(
-        async (args: { data: { name: string } }) => ({
+        async (args: {
+          where: { id: string };
+          data: Record<string, unknown>;
+        }) => ({
           ...row,
           ...args.data,
         }),

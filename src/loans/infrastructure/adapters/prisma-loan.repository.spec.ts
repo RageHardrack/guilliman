@@ -210,6 +210,25 @@ describe('PrismaLoanRepository', () => {
       expect(prisma.loanPayment.delete).not.toHaveBeenCalled();
       expect(prisma.loan.update).not.toHaveBeenCalled();
     });
+
+    it('deletePayment answers the same 404 for a foreign and a missing payment', async () => {
+      prisma.loan.findFirst.mockResolvedValue(null);
+      const foreign = repository.deletePayment('pay-1', 'user-1');
+      await expect(foreign).rejects.toThrow(NotFoundException);
+      const foreignMessage = await foreign.catch(
+        (error: unknown) => (error as Error).message,
+      );
+
+      prisma.loanPayment.findUnique.mockResolvedValue(null);
+      const missingMessage = await repository
+        .deletePayment('pay-1', 'user-1')
+        .catch((error: unknown) => (error as Error).message);
+
+      expect(foreignMessage).toBe(missingMessage);
+      expect(foreignMessage).not.toContain('loan-');
+      expect(prisma.loanPayment.delete).not.toHaveBeenCalled();
+      expect(prisma.loan.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('S4 — foreign account references are 400 before any write', () => {

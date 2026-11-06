@@ -1,9 +1,11 @@
 import { ForbiddenException } from '@nestjs/common';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import { TaxService } from '../../tax.service';
 import { TaxController } from './tax.controller';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 const profile = {
   userId: 'user-1',
@@ -32,6 +34,16 @@ describe('TaxController', () => {
     controller = new TaxController(taxService as unknown as TaxService);
   });
 
+  describe('S1 — JwtAuthGuard is required on every route', () => {
+    it('applies JwtAuthGuard at controller class level', () => {
+      const guards: unknown = Reflect.getMetadata(
+        GUARDS_METADATA,
+        TaxController,
+      );
+      expect(Array.isArray(guards) && guards.includes(JwtAuthGuard)).toBe(true);
+    });
+  });
+
   describe('S5 — the route :userId must match the token user', () => {
     const foreignCases: Array<{
       name: string;
@@ -46,7 +58,10 @@ describe('TaxController', () => {
       {
         name: 'PATCH /tax/profile/:userId',
         call: (user, pathUserId) =>
-          controller.updateProfile(user, pathUserId, { taxCountry: 'PE' }),
+          controller.updateProfile(user, pathUserId, {
+            taxProfileEnabled: true,
+            taxCountry: 'PE',
+          }),
         serviceMethod: () => taxService.updateProfile,
       },
       {

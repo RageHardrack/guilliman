@@ -1,3 +1,4 @@
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import {
   BadRequestException,
   ForbiddenException,
@@ -7,6 +8,7 @@ import {
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import { LoansController } from './loans.controller';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { Loan, LoanPayment } from '../../domain/loan.entity';
 import { LoanRepositoryPort } from '../../application/ports/loan.repository.port';
 
@@ -114,6 +116,16 @@ describe('LoansController', () => {
 
     expect(partialLoan.paidAmount).toBe(600);
     expect(partialLoan.progressPercentage).toBe(60);
+  });
+
+  describe('S1 — JwtAuthGuard is required on every route', () => {
+    it('applies JwtAuthGuard at controller class level', () => {
+      const guards: unknown = Reflect.getMetadata(
+        GUARDS_METADATA,
+        LoansController,
+      );
+      expect(Array.isArray(guards) && guards.includes(JwtAuthGuard)).toBe(true);
+    });
   });
 
   describe('S2 — the owner always comes from the token', () => {

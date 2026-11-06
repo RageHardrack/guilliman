@@ -1,15 +1,19 @@
 import { EmbedBuilder } from 'discord.js';
 
-import type { GitHubReleasePayload } from '../../webhooks/types/github-webhook.types';
 import type { ReleaseEmbedParams } from '../types/discord.types';
+import { extractSpanishReleaseSection } from './release-spanish-section';
+import type { GitHubReleasePayload } from '../../webhooks/types/github-webhook.types';
 
 export class ReleaseEmbedBuilder {
   private static readonly MAX_BODY_LENGTH = 3000;
   private static readonly RELEASE_COLOR = 0xd4af37; // Gold
 
   public static build(params: ReleaseEmbedParams): EmbedBuilder {
-    const title = `🚀 Release: ${params.releaseName || params.tagName} (${params.repositoryName})`;
-    const body = this.formatBody(params.body, params.htmlUrl);
+    const title = `🚀 Nueva versión: ${params.releaseName || params.tagName} (${params.repositoryName})`;
+    // Spec S9: announce the Spanish summary when the release carries one,
+    // otherwise fall back to the full release body.
+    const notes = extractSpanishReleaseSection(params.body) ?? params.body;
+    const body = this.formatBody(notes, params.htmlUrl);
 
     const embed = new EmbedBuilder()
       .setColor(this.RELEASE_COLOR)
@@ -27,12 +31,12 @@ export class ReleaseEmbedBuilder {
 
     embed.addFields([
       {
-        name: 'Repository',
+        name: 'Repositorio',
         value: params.repositoryFullName,
         inline: true,
       },
       {
-        name: 'Tag',
+        name: 'Versión',
         value: `\`${params.tagName}\``,
         inline: true,
       },

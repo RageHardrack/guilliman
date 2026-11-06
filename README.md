@@ -1,47 +1,47 @@
-# Guilliman (NestJS Backend API & Tique-MCP Server)
+# Guilliman (NestJS Backend API & Tique MCP Server)
 
 <a href="https://github.com/Gentleman-Programming/gentle-ai">
   <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
 </a>
 
-**Guilliman** es la API backend central y servidor **Model Context Protocol (MCP)** del ecosistema Lascar. Provee servicios REST para gestión de contenidos (Notion), autenticación de usuarios, finanzas personales (cuentas, transacciones, presupuestos, suscripciones, préstamos), liquidación tributaria (SUNAT) y conexión directa con agentes de IA (**Gemini Spark**) mediante transporte `stdio` y `SSE`, estructurado bajo **Arquitectura Hexagonal (Ports & Adapters)**.
+**Guilliman** is the central backend API and **Model Context Protocol (MCP)** server of the Lascar ecosystem. It serves REST for content management (Notion), user authentication, personal finance (accounts, transactions, budgets, subscriptions, loans), SUNAT tax settlement, and the isolated **Leon** wargaming bounded context (users, army rosters, and the 11th edition catalog). It also connects directly with AI agents (**Gemini Spark**) over `stdio` and `SSE`, and publishes deployment and release notifications to Discord. Everything is structured under **Hexagonal (Ports & Adapters) architecture**.
 
 ---
 
-## 🛠️ Stack Tecnológico
+## 🛠️ Tech Stack
 
 - **Framework**: [NestJS 11](https://nestjs.com/)
-- **HTTP Adapter**: [Fastify](https://www.fastify.io/) (alto rendimiento)
-- **Protocolo MCP**: [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) + [Zod](https://zod.dev/)
-- **ORM / Base de Datos**: [Prisma 7](https://www.prisma.io/) + [PostgreSQL 17](https://www.postgresql.org/) (`@prisma/adapter-pg`)
-- **Arquitectura**: Arquitectura Hexagonal / Limpia (`domain`, `application`, `infrastructure`)
+- **HTTP Adapter**: [Fastify](https://www.fastify.io/) (high performance)
+- **MCP Protocol**: [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) + [Zod](https://zod.dev/)
+- **ORM / Database**: [Prisma 7](https://www.prisma.io/) + [PostgreSQL 17](https://www.postgresql.org/) (`@prisma/adapter-pg`)
+- **Architecture**: Hexagonal / Clean (`domain`, `application`, `infrastructure`)
 - **Package Manager**: [Bun](https://bun.sh/)
 - **Port Management**: [Portless](https://portless.org/) (`PORTLESS_PORT=1355 PORTLESS_HTTPS=0 portless run ...`)
 - **Testing**: [Vitest](https://vitest.dev/)
-- **Documentación API**: [OpenAPI / Swagger](https://swagger.io/) (`@nestjs/swagger` + `@fastify/swagger`)
+- **API Documentation**: [OpenAPI / Swagger](https://swagger.io/) (`@nestjs/swagger` + `@fastify/swagger`)
 
 ---
 
-## 🤖 Servidor MCP de Tique (Gemini Spark)
+## 🤖 Tique MCP Server (Gemini Spark)
 
-El backend Guilliman incluye un servidor nativo MCP que expone 7 herramientas financieras y tributarias de Tique para agentes de IA:
+The Guilliman backend ships a native MCP server that exposes 7 Tique financial and tax tools to AI agents:
 
-### Herramientas Expuestas
+### Exposed Tools
 
-1. `tique_get_fiscal_summary`: Liquidación consolidada de Rentas de Trabajo 4ta/5ta categoría, saldo a favor y DJ anual.
-2. `tique_get_monthly_tax_checklist`: Checklist mensual (RHE Datincorp, pago a cuenta 8%, saldo a favor, vencimiento dígito 3).
-3. `tique_simulate_tax_scenario`: Simulación de impacto tributario ante variaciones de ingresos y gastos deducibles 3 UIT.
-4. `tique_get_net_worth_and_liquidity`: Consolidación multimoneda (USD, PEN, VES) de activos, pasivos y tarjetas.
-5. `tique_get_budget_audit`: Auditoría presupuestaria 50/30/20 y detección de gastos hormiga.
-6. `tique_create_transaction`: Registro de transacciones con trazabilidad fiscal 3 UIT.
-7. `tique_record_debt_payment`: Abono a préstamos o tarjetas con consistencia transaccional.
+1. `tique_get_fiscal_summary`: Consolidated settlement of 4th/5th category employment income, tax credit balance, and annual DJ filing.
+2. `tique_get_monthly_tax_checklist`: Monthly checklist (RHE Datincorp, 8% down payment, tax credit balance, digit-3 deadline).
+3. `tique_simulate_tax_scenario`: Simulated tax impact of changes in income and deductible expenses within the 3 UIT cap.
+4. `tique_get_net_worth_and_liquidity`: Multi-currency consolidation (USD, PEN, VES) of assets, liabilities, and cards.
+5. `tique_get_budget_audit`: 50/30/20 budget audit and detection of small recurring expenses.
+6. `tique_create_transaction`: Transaction entry with 3 UIT fiscal traceability.
+7. `tique_record_debt_payment`: Payment against loans or cards with transactional consistency.
 
-### Seguridad y Control de Acceso (Solo ADMIN)
+### Security and Access Control (ADMIN only)
 
-- El servidor MCP exige que el usuario resuelto tenga **`role === 'ADMIN'`** y **`isActive === true`**.
-- Se puede especificar el usuario explícito mediante `MCP_USER_ID` o `MCP_USER_EMAIL` en el entorno, o resolverá automáticamente el primer administrador activo.
+- The MCP server requires the resolved user to have **`role === 'ADMIN'`** and **`isActive === true`**.
+- The user can be specified explicitly with `MCP_USER_ID` or `MCP_USER_EMAIL` in the environment; otherwise it resolves to the first active administrator.
 
-### Configuración para Gemini Spark (Local en macOS vía Stdio)
+### Configuration for Gemini Spark (Local on macOS via Stdio)
 
 ```json
 {
@@ -60,19 +60,19 @@ El backend Guilliman incluye un servidor nativo MCP que expone 7 herramientas fi
 }
 ```
 
-### Configuración para Gemini Spark (Remoto en Producción vía HTTP / SSE)
+### Configuration for Gemini Spark (Remote in Production via HTTP / SSE)
 
-Cuando Guilliman se encuentre desplegado en el VPS:
+Once Guilliman is deployed on the VPS:
 
-- Endpoint SSE: `GET /api/v1/mcp/sse`
-- Endpoint Mensajes: `POST /api/v1/mcp/messages?sessionId={id}`
-- Seguridad: Requiere cabecera `Authorization: Bearer <TOKEN_ADMIN_JWT>`
+- SSE endpoint: `GET /api/v1/mcp/sse`
+- Messages endpoint: `POST /api/v1/mcp/messages?sessionId={id}`
+- Security: requires the `Authorization: Bearer <TOKEN_ADMIN_JWT>` header
 
 ```json
 {
   "mcpServers": {
     "guilliman-remote": {
-      "serverUrl": "https://api.tu-dominio.pe/api/v1/mcp/sse",
+      "serverUrl": "https://api.your-domain.pe/api/v1/mcp/sse",
       "headers": {
         "Authorization": "Bearer <TOKEN_ADMIN_JWT>"
       }
@@ -83,157 +83,184 @@ Cuando Guilliman se encuentre desplegado en el VPS:
 
 ---
 
-## 🔔 Integración de Discord Bot & GitHub Webhooks
+## 🔔 Discord Bot & GitHub Webhooks Integration
 
-Guilliman incluye un módulo nativo de Discord Bot y receptor de Webhooks para notificaciones en tiempo real del estado de pipelines CI/CD (GitHub Actions):
+Guilliman includes a native Discord Bot module and a webhook receiver for real-time notifications about CI/CD pipeline state (GitHub Actions):
 
-### Componentes Principales
+### Core Components
 
-- **`DiscordClientService`**: Gestiona el ciclo de vida del cliente `discord.js`, conexión al Gateway, reconexión y degradación elegante si `DISCORD_BOT_TOKEN` no está configurado.
-- **`DiscordNotificationService`**: Envía mensajes y embeds formateados a canales específicos de Discord.
-- **`WorkflowEmbedBuilder`**: Construye embeds enriquecidos codificados por color (Verde = éxito, Rojo = fallo, Azul = en progreso, Naranja = timeout/alerta) con enlaces al repositorio, rama, commit truncado y duración.
-- **`ReleaseEmbedBuilder`**: Construye embeds enriquecidos para publicaciones de lanzamientos y notas de cambios (_changelog_) a partir de eventos `release`.
-- **`GithubSignatureGuard`**: Valida firmas HMAC-SHA256 (`X-Hub-Signature-256`) en tiempo constante (`crypto.timingSafeEqual`).
-- **`GithubWebhookController`**: Endpoint `POST /api/v1/webhooks/github` que procesa eventos `workflow_run` y `release` y los delega a los canales correspondientes de Discord.
+- **`DiscordClientService`**: Manages the `discord.js` client lifecycle, Gateway connection, reconnection, and graceful degradation when `DISCORD_BOT_TOKEN` is not configured.
+- **`DiscordNotificationService`**: Sends messages and formatted embeds to specific Discord channels.
+- **`WorkflowEmbedBuilder`**: Builds color-coded rich embeds (green = success, red = failure, blue = in progress, orange = timeout/alert) with links to the repository, branch, truncated commit, and duration.
+- **`ReleaseEmbedBuilder`**: Builds rich embeds for release publications and changelog notes from `release` events.
+- **`GithubSignatureGuard`**: Validates HMAC-SHA256 signatures (`X-Hub-Signature-256`) in constant time (`crypto.timingSafeEqual`).
+- **`GithubWebhookController`**: `POST /api/v1/webhooks/github` endpoint that handles `workflow_run` and `release` events and delegates them to the corresponding Discord channels.
 
-### Variables de Entorno
+### Environment Variables
 
 ```env
 DISCORD_BOT_TOKEN="tu_discord_bot_token"
 DISCORD_NOTIFICATIONS_CHANNEL_ID="tu_canal_discord_id"
-DISCORD_CHANGELOG_CHANNEL_ID="tu_canal_changelog_discord_id" # Opcional: canal exclusivo para lanzamientos; si no se configura, recurre a DISCORD_NOTIFICATIONS_CHANNEL_ID
+DISCORD_CHANGELOG_CHANNEL_ID="tu_canal_changelog_discord_id" # Optional: dedicated channel for releases; when unset, falls back to DISCORD_NOTIFICATIONS_CHANNEL_ID
 GITHUB_WEBHOOK_SECRET="tu_github_webhook_secret"
 ```
 
-### Configuración en GitHub Webhooks
+### GitHub Webhooks Setup
 
-1. En el repositorio de GitHub, navegar a **Settings** -> **Webhooks** -> **Add webhook**.
-2. **Payload URL**: `https://api.tu-dominio.com/api/v1/webhooks/github`
+1. In the GitHub repository, go to **Settings** -> **Webhooks** -> **Add webhook**.
+2. **Payload URL**: `https://api.your-domain.com/api/v1/webhooks/github`
 3. **Content type**: `application/json`
-4. **Secret**: La misma clave configurada en `GITHUB_WEBHOOK_SECRET`.
-5. **Events**: Seleccionar _Let me select individual events_ y marcar **Workflow runs** y **Releases**.
+4. **Secret**: the same value configured in `GITHUB_WEBHOOK_SECRET`.
+5. **Events**: choose _Let me select individual events_ and tick **Workflow runs** and **Releases**.
 
 ---
 
-## 📖 Documentación Interactiva (Swagger / OpenAPI)
+## 📖 Interactive Documentation (Swagger / OpenAPI)
 
-Una vez iniciado el servidor, la documentación interactiva se encuentra disponible en:
+Once the server is running, the interactive documentation is available at:
 
-- **Swagger UI**: `http://guilliman.localhost:1355/api/v1/docs` (o `http://localhost:3000/api/v1/docs`)
-- **JSON OpenAPI**: `http://guilliman.localhost:1355/api/v1/docs-json`
+- **Swagger UI**: `http://guilliman.localhost:1355/api/v1/docs` (or `http://localhost:3000/api/v1/docs`)
+- **OpenAPI JSON**: `http://guilliman.localhost:1355/api/v1/docs-json`
 
 ---
 
-## 🏗️ Módulos y Arquitectura Hexagonal
+## 🏗️ Modules and Hexagonal Architecture
 
 ```text
 src/
-├── auth/               # Autenticación JWT, guards y roles (ADMIN, USER)
-├── users/              # Gestión de usuarios y perfiles
-├── accounts/           # Cuentas bancarias, billeteras y saldos
-├── categories/         # Jerarquía de categorías de ingresos y gastos
-├── budgets/            # Límites y presupuestos mensuales por categoría (50/30/20)
-├── goals/              # Metas de ahorro y depósitos/retiros directos
-├── loans/              # Préstamos y deudas con amortizaciones e impacto bancario
-├── subscriptions/      # Suscripciones, pagos recurrentes
-├── transactions/       # Registro de transacciones y metadatos SUNAT
-├── transaction-templates/ # Plantillas de gasto/ingreso/transferencia para registro rápido
-├── tax/                # Motor fiscal SUNAT (4ta/5ta categoría, UIT 2026, 3 UIT)
-├── mcp/                # Servidor Model Context Protocol con Auth Guard ADMIN
-├── notion/             # Integración con Notion (CMS) y resolución de Languages (i18n)
-├── discord/            # Bot de Discord (Gateway client, embed builder, dispatching)
-├── webhooks/           # Webhooks de integración externa (GitHub CI/CD workflow notifications)
-├── blog/               # Endpoints públicos del Blog con filtrado por idioma (?lang=es|en)
-├── portfolio/          # Proyectos y habilidades con filtrado por idioma (?lang=es|en)
-├── links/              # Enlaces y redes
-└── infrastructure/     # Adaptadores de base de datos (PrismaService)
+├── auth/               # JWT authentication, guards and roles (ADMIN, USER)
+├── users/              # User and profile management
+├── admin/              # Admin-only user CRUD (/admin/users)
+├── accounts/           # Bank accounts, wallets, and balances
+├── categories/         # Income and expense category hierarchy
+├── budgets/            # Monthly per-category limits and budgets (50/30/20)
+├── goals/              # Savings goals with direct deposits/withdrawals
+├── loans/              # Loans and debts with payments and banking impact
+├── subscriptions/      # Subscriptions and recurring payments
+├── transactions/       # Transaction entry and SUNAT metadata
+├── transaction-templates/ # Expense/income/transfer templates for fast entry
+├── exchange-rates/     # Official SUNAT (USD→PEN) and BCV (USD→VES) rates
+├── tax/                # SUNAT tax engine (4th/5th category, UIT 2026, 3 UIT)
+├── mcp/                # Model Context Protocol server with ADMIN auth guard
+├── leon/               # Isolated Leon bounded context (auth, admin, rosters, catalog)
+├── notion/             # Notion integration (CMS) and Languages resolution (i18n)
+├── discord/            # Discord bot (Gateway client, embed builders, dispatching)
+├── webhooks/           # External integration webhooks (GitHub CI/CD, Watchtower)
+├── blog/               # Public blog endpoints with language filtering (?lang=es|en)
+├── portfolio/          # Projects and skills with language filtering (?lang=es|en)
+├── about/              # Public personal/professional profile endpoints
+├── links/              # Links and social networks
+└── infrastructure/     # Database adapters (PrismaService)
 ```
 
-### Propiedad de los datos financieros
+### Financial Data Ownership
 
-Las rutas de `accounts`, `transactions`, `categories`, `budgets`, `savings-goals`, `loans`, `tax`, `subscriptions` y `transaction-templates` requieren `Authorization: Bearer <JWT>`. El usuario sale siempre del token, nunca de la URL ni del cuerpo.
+The `accounts`, `transactions`, `categories`, `budgets`, `savings-goals`, `loans`, `tax`, `subscriptions`, and `transaction-templates` routes require `Authorization: Bearer <JWT>`. The user always comes from the token, never from the URL or the body.
 
-| Caso                                                                               | Respuesta                             |
-| ---------------------------------------------------------------------------------- | ------------------------------------- |
-| Sin token o con token inválido o vencido (el JWT dura 7 días)                      | 401                                   |
-| Recurso de otro usuario o inexistente                                              | 404, sin cambios                      |
-| Referencia a una cuenta, cuenta destino o categoría de otro usuario                | 400, antes de escribir o mover saldos |
-| `:userId` en la ruta (`loans/user/:userId`, `tax/*/:userId`) distinto al del token | 403, sin cambios                      |
+| Case                                                                                     | Response                            |
+| ---------------------------------------------------------------------------------------- | ----------------------------------- |
+| No token, or an invalid or expired token (the JWT lasts 7 days)                          | 401                                 |
+| Another user's resource, or a missing one                                                | 404, no changes                     |
+| Reference to another user's account, destination account, or category                    | 400, before writing or moving funds |
+| `:userId` in the path (`loans/user/:userId`, `tax/*/:userId`) different from the token's | 403, no changes                     |
 
-Un `userId` en el query o en el cuerpo se sigue aceptando por compatibilidad, pero se ignora.
+A `userId` in the query or body is still accepted for compatibility, but it is ignored.
 
-### Plantillas de transacción (`/api/v1/transaction-templates`)
+### Transaction Templates (`/api/v1/transaction-templates`)
 
-Movimientos pre-hechos por usuario (gasto, ingreso o transferencia) para el registro rápido de Tique. No son programables: sin frecuencias ni recordatorios. Todas las rutas requieren JWT y el `userId` sale siempre del token; una plantilla inexistente o ajena responde 404 y no modifica nada.
+Per-user ready-made movements (expense, income, or transfer) for Tique's fast entry. They are not schedulable: no frequencies and no reminders. All routes require a JWT and the `userId` always comes from the token; a missing or foreign template answers 404 and changes nothing.
 
-| Método | Ruta                             | Descripción                                                                                                                   |
-| ------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/transaction-templates`         | Plantillas del usuario, ordenadas por uso reciente (`lastUsedAt` descendente, nunca usadas al final, luego `name` ascendente) |
-| POST   | `/transaction-templates`         | Crear plantilla (`name`, `type`, `accountId`, `destinationAccountId?`, `categoryId?`, `defaultAmount?`, `note?`)              |
-| PUT    | `/transaction-templates/:id`     | Actualizar plantilla (cuerpo completo)                                                                                        |
-| DELETE | `/transaction-templates/:id`     | Eliminar plantilla                                                                                                            |
-| POST   | `/transaction-templates/:id/use` | Marcar como usada: fija `lastUsedAt` a la hora actual                                                                         |
+| Method | Route                            | Description                                                                                                        |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/transaction-templates`         | The user's templates, ordered by recent use (`lastUsedAt` descending, never used last, then `name` ascending)      |
+| POST   | `/transaction-templates`         | Create a template (`name`, `type`, `accountId`, `destinationAccountId?`, `categoryId?`, `defaultAmount?`, `note?`) |
+| PUT    | `/transaction-templates/:id`     | Update a template (full body)                                                                                      |
+| DELETE | `/transaction-templates/:id`     | Delete a template                                                                                                  |
+| POST   | `/transaction-templates/:id/use` | Mark as used: sets `lastUsedAt` to the current time                                                                |
 
-Reglas validadas en el dominio (respuesta 400 si se incumplen): `type` es `EXPENSE`, `INCOME` o `TRANSFER`; `TRANSFER` exige `destinationAccountId` distinto de `accountId`; `EXPENSE`/`INCOME` no llevan cuenta destino; `defaultAmount` es opcional y, si viene, debe ser un número mayor a 0; `accountId` y `categoryId` deben pertenecer al usuario. Las transacciones se siguen creando con `POST /transactions`.
+Rules validated in the domain (400 when broken): `type` is `EXPENSE`, `INCOME`, or `TRANSFER`; `TRANSFER` requires a `destinationAccountId` different from `accountId`; `EXPENSE`/`INCOME` carry no destination account; `defaultAmount` is optional and, when present, must be a number greater than 0; `accountId` and `categoryId` must belong to the user. Transactions are still created with `POST /transactions`.
+
+### Leon (Warhammer 40,000) Bounded Context (`/api/v1/leon`)
+
+Leon is a separate product with its own data inside Guilliman: its users, tokens, and routes never mix with the Lascar finance ones. All of it lives under the `/api/v1/leon` prefix and uses an isolated JWT signed with claim `app: 'LEON'`, validated by `LeonJwtAuthGuard` and `LeonRolesGuard`.
+
+| Area        | Routes                                                                                              | Access     | Description                                                                    |
+| ----------- | --------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------ |
+| Auth        | `POST /leon/auth/login`                                                                             | Public     | Issues the isolated Leon token; Lascar credentials do not work here.           |
+| Admin users | `GET/POST /leon/admin/users`, `PATCH /leon/admin/users/:id`, `PATCH …/:id/password`, `DELETE …/:id` | Leon ADMIN | CRUD for Leon users only.                                                      |
+| Rosters     | `GET/POST /leon/rosters`, `GET/PATCH/DELETE /leon/rosters/:id`                                      | Leon JWT   | Per-user army rosters; the owner comes from the token, foreign ids answer 404. |
+| Catalog     | `/leon/catalog` (see below)                                                                         | Leon JWT   | Faction packages synced from Leon's build pipeline.                            |
+
+### Leon 11th edition catalog (`/api/v1/leon/catalog`)
+
+Stores one catalog package per faction, produced by Leon's `build-catalog` pipeline. The API is a passthrough: it validates the package shape and keeps the whole package as JSON (`leon_catalog_factions`), while the game logic stays in Leon. Routes use the isolated Leon JWT (claim `app: 'LEON'`).
+
+| Method | Route                        | Access     | Description                                                          |
+| ------ | ---------------------------- | ---------- | -------------------------------------------------------------------- |
+| GET    | `/leon/catalog`              | Leon JWT   | Index of stored factions with their metadata and `syncedAt`          |
+| GET    | `/leon/catalog/factions/:id` | Leon JWT   | One faction package (`:id` is the Wahapedia faction code, e.g. `SM`) |
+| POST   | `/leon/catalog/import`       | Leon ADMIN | Upsert faction packages; it never deletes factions that are missing  |
+
+Leon's `scripts/publish-catalog.ts` uploads one faction per request and reads `LEON_API_BASE_URL`, `LEON_ADMIN_EMAIL` and `LEON_ADMIN_PASSWORD`. Create that admin with `bun run scripts/create-leon-admin.ts`.
 
 ---
 
-## 🚀 Inicio Rápido (Desarrollo Local)
+## 🚀 Quick Start (Local Development)
 
-### 1. Instalación de dependencias
+### 1. Install dependencies
 
 ```bash
 bun install
 ```
 
-### 2. Levantar la Base de Datos PostgreSQL 17 Local
+### 2. Start the local PostgreSQL 17 database
 
-Dentro de esta carpeta (`guilliman/`):
+Inside this folder (`guilliman/`):
 
 ```bash
 docker compose up -d
 ```
 
-### 3. Configurar Variables de Entorno y Sincronizar Prisma
+### 3. Configure Environment Variables and Sync Prisma
 
-Crea un archivo `.env` en `guilliman/`:
+Create a `.env` file in `guilliman/`:
 
 ```env
 DATABASE_URL="postgresql://guilliman_user:guilliman_secret@localhost:5434/guilliman_db?schema=public"
 PORT=3000
 ```
 
-Sincronizá el esquema de Prisma con PostgreSQL:
+Sync the Prisma schema with PostgreSQL:
 
 ```bash
 bunx prisma db push
 ```
 
-### 4. Crear o Actualizar Usuarios Familiares / Administradores (CLI)
+### 4. Create or Update Family Users / Administrators (CLI)
 
 ```bash
 bun run create:user <email> <password> [nombre]
 
-# Ejemplo:
+# Example:
 bun run create:user daniel@lascar.pe miClaveSegura123 "Daniel Colmenares"
 ```
 
-### 5. Migración de Tasas Históricas para Transacciones VES (CLI)
+### 5. Historical Rate Migration for VES Transactions (CLI)
 
-Para asignar tasas de cambio de referencia a transacciones en bolívares previas sin tasa registrada:
+To assign reference exchange rates to bolívar transactions recorded earlier without one:
 
 ```bash
 bun run migrate:rates
 ```
 
-### 6. Ejecutar la API en Desarrollo con Portless
+### 6. Run the API in Development with Portless
 
 ```bash
-# Desarrollo con watch mode y portless (HTTP puerto 1355)
+# Development with watch mode and portless (HTTP port 1355)
 bun run start:dev
 ```
 
-### 7. Ejecutar Servidor MCP en Modo Stdio
+### 7. Run the MCP Server in Stdio Mode
 
 ```bash
 bun run mcp:start
@@ -241,13 +268,29 @@ bun run mcp:start
 
 ---
 
-## 🧪 Pruebas y Compilación
+## 🧪 Tests and Build
 
 ```bash
-# Ejecutar suite de pruebas unitarias
+# Run the unit test suite
 bun test src/mcp/
 bun test src/tax/
 
-# Compilar para producción
+# Compile for production
 bun run build
 ```
+
+---
+
+## 🌿 Branching and Releases
+
+Guilliman follows GitFlow with two long-lived branches: `main` (production, one tag and one GHCR image per release) and `dev` (integration).
+
+| Work                                        | Branch from | Goes back to       | Pull request |
+| ------------------------------------------- | ----------- | ------------------ | ------------ |
+| Feature or ordinary fix (`feat/…`, `fix/…`) | `dev`       | `dev`              | Not required |
+| Hotfix (`hotfix/…`)                         | `main`      | `main`, then `dev` | Required     |
+| Release                                     | `dev`       | `main`             | Required     |
+
+- Changes reach `main` **only** through a release PR opened from `dev`; `main` is never pushed to directly.
+- The version number and the release notes come from the `[Unreleased]` section of [`CHANGELOG.md`](CHANGELOG.md): the release PR moves it under a new `## [X.Y.Z] - YYYY-MM-DD` heading.
+- Merging that release PR is what publishes the GHCR image and posts the changelog to Discord.

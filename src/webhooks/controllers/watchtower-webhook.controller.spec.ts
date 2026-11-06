@@ -42,6 +42,20 @@ describe('WatchtowerWebhookController', () => {
     expect(mockDiscordNotificationService.sendEmbed).not.toHaveBeenCalled();
   });
 
+  it('skips notification on routine session report with 0 updates', async () => {
+    const payload = {
+      message: 'Session report: 4 Scanned, 0 Updated, 0 Failed',
+    };
+
+    const result = await controller.handleWatchtowerWebhook(payload);
+
+    expect(result).toEqual({
+      status: 'skipped',
+      reason: 'zero_updates',
+    });
+    expect(mockDiscordNotificationService.sendEmbed).not.toHaveBeenCalled();
+  });
+
   it('dispatches embed to Discord when valid payload is received', async () => {
     const payload = {
       title: 'Watchtower updates',

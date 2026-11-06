@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { ReleaseEmbedBuilder } from './release-embed.builder';
-import type { GitHubReleasePayload } from '../../webhooks/types/github-webhook.types';
 import type { ReleaseEmbedParams } from '../types/discord.types';
+import type { GitHubReleasePayload } from '../../webhooks/types/github-webhook.types';
 
 describe('ReleaseEmbedBuilder', () => {
   const baseParams: ReleaseEmbedParams = {
@@ -17,10 +17,12 @@ describe('ReleaseEmbedBuilder', () => {
     publishedAt: '2026-09-17T12:00:00Z',
   };
 
-  it('should build a Discord embed with release title, url and color', () => {
+  it('should build a Discord embed with Spanish title, url and color', () => {
     const embed = ReleaseEmbedBuilder.build(baseParams);
 
-    expect(embed.data.title).toBe('🚀 Release: v1.1.0: Contenedor acotado y filtros (tique)');
+    expect(embed.data.title).toBe(
+      '🚀 Nueva versión: v1.1.0: Contenedor acotado y filtros (tique)',
+    );
     expect(embed.data.url).toBe(baseParams.htmlUrl);
     expect(embed.data.color).toBe(0xd4af37); // Gold accent
   });
@@ -32,15 +34,15 @@ describe('ReleaseEmbedBuilder', () => {
     expect(embed.data.author?.icon_url).toBe(baseParams.actorAvatarUrl);
   });
 
-  it('should include repository and tag fields', () => {
+  it('should include Repositorio and Version fields', () => {
     const embed = ReleaseEmbedBuilder.build(baseParams);
 
     const fields = embed.data.fields || [];
-    const repoField = fields.find((f) => f.name === 'Repository');
-    const tagField = fields.find((f) => f.name === 'Tag');
+    const repoField = fields.find((f) => f.name === 'Repositorio');
+    const versionField = fields.find((f) => f.name === 'Versión');
 
     expect(repoField?.value).toBe('RageHardrack/tique');
-    expect(tagField?.value).toBe('`v1.1.0`');
+    expect(versionField?.value).toBe('`v1.1.0`');
   });
 
   it('should set description with the markdown changelog', () => {
@@ -50,13 +52,42 @@ describe('ReleaseEmbedBuilder', () => {
     expect(embed.data.description).toContain('Filtro sin categoría');
   });
 
+  it('should publish only the Resumen (ES) section when the body has one', () => {
+    const embed = ReleaseEmbedBuilder.build({
+      ...baseParams,
+      body: '### Added\n- New budget chart\n\n## Resumen (ES)\n- Nueva función\n',
+    });
+
+    expect(embed.data.description).toBe('- Nueva función');
+    expect(embed.data.description).not.toContain('New budget chart');
+    expect(embed.data.description).not.toContain('Resumen (ES)');
+  });
+
+  it('should fall back to the whole body when there is no Resumen (ES) section', () => {
+    const body = '### Added\n- New budget chart\n- Another English note';
+    const embed = ReleaseEmbedBuilder.build({ ...baseParams, body });
+
+    expect(embed.data.description).toBe(body);
+  });
+
+  it('should fall back to the whole body when the Resumen (ES) section is empty', () => {
+    const body =
+      '### Added\n- New budget chart\n\n## Resumen (ES)\n<!-- pendiente -->\n\n## Legal\n- x';
+    const embed = ReleaseEmbedBuilder.build({ ...baseParams, body });
+
+    expect(embed.data.description).toContain('- New budget chart');
+    expect(embed.data.description).toContain('## Legal');
+  });
+
   it('should handle null or empty changelog gracefully', () => {
     const embed = ReleaseEmbedBuilder.build({
       ...baseParams,
       body: null,
     });
 
-    expect(embed.data.description).toBe('Sin notas de cambios especificadas en este lanzamiento.');
+    expect(embed.data.description).toBe(
+      'Sin notas de cambios especificadas en este lanzamiento.',
+    );
   });
 
   it('should truncate overly long changelogs to prevent Discord 4096 character overflow', () => {
@@ -67,7 +98,9 @@ describe('ReleaseEmbedBuilder', () => {
     });
 
     expect(embed.data.description?.length).toBeLessThanOrEqual(3000);
-    expect(embed.data.description).toContain('... [Ver notas completas en GitHub]');
+    expect(embed.data.description).toContain(
+      '... [Ver notas completas en GitHub](https://github.com/RageHardrack/tique/releases/tag/v1.1.0)',
+    );
   });
 
   it('should build correctly from a GitHubReleasePayload', () => {
@@ -78,7 +111,8 @@ describe('ReleaseEmbedBuilder', () => {
         tag_name: 'v2.0.0',
         name: 'v2.0.0 Major Update',
         body: '## Breaking Changes\n- New auth architecture',
-        html_url: 'https://github.com/RageHardrack/guilliman/releases/tag/v2.0.0',
+        html_url:
+          'https://github.com/RageHardrack/guilliman/releases/tag/v2.0.0',
         published_at: '2026-09-17T12:00:00Z',
         author: {
           id: 12345,
@@ -104,7 +138,9 @@ describe('ReleaseEmbedBuilder', () => {
 
     const embed = ReleaseEmbedBuilder.buildFromPayload(payload);
 
-    expect(embed.data.title).toBe('🚀 Release: v2.0.0 Major Update (guilliman)');
+    expect(embed.data.title).toBe(
+      '🚀 Nueva versión: v2.0.0 Major Update (guilliman)',
+    );
     expect(embed.data.description).toContain('New auth architecture');
   });
 });

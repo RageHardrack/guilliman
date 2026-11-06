@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { Account as PrismaAccount } from '@prisma/client';
 
@@ -18,7 +18,7 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
       data: {
         userId: data.userId,
         name: data.name,
-        type: data.type as any,
+        type: data.type satisfies PrismaAccount['type'],
         balance: data.balance ?? 0.0,
         currency: data.currency ?? 'USD',
       },
@@ -27,9 +27,14 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
     return this.mapToDomain(raw);
   }
 
-  async findById(id: string): Promise<Account | null> {
-    const raw = await this.prisma.account.findUnique({ where: { id } });
-    return raw ? this.mapToDomain(raw) : null;
+  async findById(id: string, userId: string): Promise<Account> {
+    const raw = await this.prisma.account.findFirst({
+      where: { id, userId },
+    });
+    if (!raw) {
+      throw new NotFoundException('Account not found');
+    }
+    return this.mapToDomain(raw);
   }
 
   async findByUserId(userId: string): Promise<Account[]> {
@@ -50,37 +55,41 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
 
   async update(
     id: string,
+    userId: string,
     data: Partial<Omit<CreateAccountData, 'userId' | 'currency'>>,
   ): Promise<Account> {
+    await this.getOwnedRow(id, userId);
     const raw = await this.prisma.account.update({
       where: { id },
       data: {
         ...(data.name !== undefined && { name: data.name }),
-        ...(data.type !== undefined && { type: data.type as any }),
+        ...(data.type !== undefined && {
+          type: data.type satisfies PrismaAccount['type'],
+        }),
         ...(data.balance !== undefined && { balance: data.balance }),
       },
     });
     return this.mapToDomain(raw);
   }
 
-  async delete(id: string): Promise<boolean> {
-    try {
-      await this.prisma.account.delete({ where: { id } });
-      return true;
-    } catch {
-      return false;
-    }
+  async delete(id: string, userId: string): Promise<boolean> {
+    await this.getOwnedRow(id, userId);
+    await this.prisma.account.delete({ where: { id } });
+    return true;
   }
 
   async reconcile(
     id: string,
+    userId: string,
     realBalance: number,
     note?: string,
   ): Promise<{ account: Account; discrepancy: number }> {
     return this.prisma.$transaction(async (tx) => {
-      const account = await tx.account.findUnique({ where: { id } });
+      // Ownership is checked inside the transaction: a foreign or missing
+      // account never reaches the adjustment transaction or the balance set.
+      const account = await tx.account.findFirst({ where: { id, userId } });
       if (!account) {
-        throw new Error(`Cuenta con ID ${id} no encontrada.`);
+        throw new NotFoundException('Account not found');
       }
 
       const discrepancy =
@@ -118,6 +127,23 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
         discrepancy: 0,
       };
     });
+  }
+
+  /**
+   * Reads by { id, userId } so foreign and missing accounts both look
+   * absent: the caller gets 404 and no mutation is attempted.
+   */
+  private async getOwnedRow(
+    id: string,
+    userId: string,
+  ): Promise<PrismaAccount> {
+    const row = await this.prisma.account.findFirst({
+      where: { id, userId },
+    });
+    if (!row) {
+      throw new NotFoundException('Account not found');
+    }
+    return row;
   }
 
   private mapToDomain(raw: PrismaAccount): Account {

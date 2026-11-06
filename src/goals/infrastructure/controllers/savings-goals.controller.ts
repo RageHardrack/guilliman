@@ -88,7 +88,13 @@ export class SavingsGoalsController {
       targetAmount: dto.targetAmount,
       currentAmount: dto.currentAmount,
       currency: dto.currency,
-      targetDate: dto.targetDate ? new Date(dto.targetDate) : undefined,
+      // null clears the date; an absent field leaves it as it is.
+      targetDate:
+        dto.targetDate === null
+          ? null
+          : dto.targetDate
+            ? new Date(dto.targetDate)
+            : undefined,
       color: dto.color,
       icon: dto.icon,
       priority: dto.priority,

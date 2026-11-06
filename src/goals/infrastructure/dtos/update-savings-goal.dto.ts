@@ -13,8 +13,11 @@ export class UpdateSavingsGoalDto {
   @ApiPropertyOptional({ description: 'Moneda de la meta' })
   currency?: string;
 
-  @ApiPropertyOptional({ description: 'Fecha límite estimada' })
-  targetDate?: string;
+  @ApiPropertyOptional({
+    description: 'Fecha límite estimada; null la borra',
+    nullable: true,
+  })
+  targetDate?: string | null;
 
   @ApiPropertyOptional({ description: 'Color hexadecimal identificativo' })
   color?: string;

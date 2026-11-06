@@ -231,6 +231,49 @@ describe('SavingsGoalsController', () => {
     });
   });
 
+  describe('PUT targetDate', () => {
+    const updatePayload = () =>
+      (repository.update as ReturnType<typeof vi.fn>).mock.calls[0][2] as {
+        targetDate?: Date | null;
+      };
+
+    it('clears the target date when the body sends null', async () => {
+      await controller.update(
+        'goal-1',
+        { userId: 'token-user' },
+        {
+          targetDate: null,
+        },
+      );
+
+      expect(updatePayload().targetDate).toBeNull();
+    });
+
+    it('leaves the target date untouched when the body omits it', async () => {
+      await controller.update(
+        'goal-1',
+        { userId: 'token-user' },
+        {
+          name: 'Nuevo nombre',
+        },
+      );
+
+      expect(updatePayload().targetDate).toBeUndefined();
+    });
+
+    it('sets the target date when the body sends one', async () => {
+      await controller.update(
+        'goal-1',
+        { userId: 'token-user' },
+        {
+          targetDate: '2027-01-31',
+        },
+      );
+
+      expect(updatePayload().targetDate).toEqual(new Date('2027-01-31'));
+    });
+  });
+
   describe('response shapes stay as they are today', () => {
     it('should deposit funds into savings goal', async () => {
       const result = await controller.deposit(

@@ -53,6 +53,13 @@ export class WatchtowerWebhookController {
       const normalizedPayload: WatchtowerWebhookPayload =
         typeof payload === 'string' ? { message: payload } : payload || {};
 
+      if (WatchtowerEmbedBuilder.isZeroUpdatesSession(normalizedPayload)) {
+        this.logger.log(
+          'Watchtower session reported 0 updates and 0 errors. Skipping Discord notification.',
+        );
+        return { status: 'skipped', reason: 'zero_updates' };
+      }
+
       const embed = WatchtowerEmbedBuilder.build(normalizedPayload);
       const sent = await this.discordNotificationService.sendEmbed({
         channelId,

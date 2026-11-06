@@ -56,4 +56,33 @@ describe('WatchtowerEmbedBuilder', () => {
     expect(data.title).toContain('🐳 Watchtower');
     expect(data.color).toBe(DISCORD_EMBED_COLORS.success);
   });
+
+  it('correctly classifies a session report with 0 failed as NOT a failure', () => {
+    const payload = {
+      message: 'Session report: 4 Scanned, 0 Updated, 0 Failed',
+    };
+
+    expect(WatchtowerEmbedBuilder.isFailure(payload)).toBe(false);
+    expect(WatchtowerEmbedBuilder.isZeroUpdatesSession(payload)).toBe(true);
+
+    const embed = WatchtowerEmbedBuilder.build(payload);
+    const data = embed.toJSON();
+    expect(data.color).toBe(DISCORD_EMBED_COLORS.success);
+    expect(data.title).toContain('🐳 Watchtower: Despliegue');
+  });
+
+  it('correctly classifies registry 403 Forbidden / denied error as a failure', () => {
+    const payload = {
+      message:
+        'Could not do a head request for "ghcr.io/ragehardrack/guilliman:latest", falling back to regular pull. Reason: registry responded to head request with "403 Forbidden", auth: "not present"',
+    };
+
+    expect(WatchtowerEmbedBuilder.isFailure(payload)).toBe(true);
+    expect(WatchtowerEmbedBuilder.isZeroUpdatesSession(payload)).toBe(false);
+
+    const embed = WatchtowerEmbedBuilder.build(payload);
+    const data = embed.toJSON();
+    expect(data.color).toBe(DISCORD_EMBED_COLORS.failure);
+    expect(data.title).toContain('Fallo');
+  });
 });

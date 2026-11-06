@@ -149,6 +149,19 @@ src/
 └── infrastructure/     # Adaptadores de base de datos (PrismaService)
 ```
 
+### Propiedad de los datos financieros
+
+Las rutas de `accounts`, `transactions`, `categories`, `budgets`, `savings-goals`, `loans`, `tax`, `subscriptions` y `transaction-templates` requieren `Authorization: Bearer <JWT>`. El usuario sale siempre del token, nunca de la URL ni del cuerpo.
+
+| Caso                                                                               | Respuesta                             |
+| ---------------------------------------------------------------------------------- | ------------------------------------- |
+| Sin token o con token inválido o vencido (el JWT dura 7 días)                      | 401                                   |
+| Recurso de otro usuario o inexistente                                              | 404, sin cambios                      |
+| Referencia a una cuenta, cuenta destino o categoría de otro usuario                | 400, antes de escribir o mover saldos |
+| `:userId` en la ruta (`loans/user/:userId`, `tax/*/:userId`) distinto al del token | 403, sin cambios                      |
+
+Un `userId` en el query o en el cuerpo se sigue aceptando por compatibilidad, pero se ignora.
+
 ### Plantillas de transacción (`/api/v1/transaction-templates`)
 
 Movimientos pre-hechos por usuario (gasto, ingreso o transferencia) para el registro rápido de Tique. No son programables: sin frecuencias ni recordatorios. Todas las rutas requieren JWT y el `userId` sale siempre del token; una plantilla inexistente o ajena responde 404 y no modifica nada.

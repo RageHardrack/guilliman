@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-13
+
 ### Added
 
 - **docs**: startup log line stating whether Swagger is enabled, so a rejected `SWAGGER_ENABLED` value is visible in the container logs.

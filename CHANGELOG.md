@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- **docs**: startup log line stating whether Swagger is enabled, so a rejected `SWAGGER_ENABLED` value is visible in the container logs.
+- **tests**: route-level tests boot a minimal Fastify app and assert that `/api/v1/docs` and `/api/v1/docs-json` answer `404` unless `SWAGGER_ENABLED=true`, so removing the guard now fails the suite.
+
 ## [0.5.1] - 2026-11-12
 
 ### Security

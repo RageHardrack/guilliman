@@ -5,7 +5,7 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module';
-import { isSwaggerEnabled, setupSwagger } from './swagger';
+import { configureSwagger } from './swagger';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter();
@@ -67,9 +67,7 @@ async function bootstrap() {
   });
   app.setGlobalPrefix('api/v1');
 
-  if (isSwaggerEnabled(process.env)) {
-    setupSwagger(app);
-  }
+  configureSwagger(app, process.env);
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

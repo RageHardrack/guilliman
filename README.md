@@ -130,6 +130,12 @@ When enabled, the documentation is available at:
 - **Swagger UI**: `http://guilliman.localhost:1355/api/v1/docs` (or `http://localhost:3000/api/v1/docs`)
 - **OpenAPI JSON**: `http://guilliman.localhost:1355/api/v1/docs-json`
 
+At startup the `Swagger` logger prints the decision, so a value the flag does not accept (`TRUE`,
+`1`, an empty interpolation) is visible in the container logs instead of failing silently:
+
+- `Swagger enabled at /api/v1/docs`
+- `Swagger disabled: set SWAGGER_ENABLED=true to serve /api/v1/docs`
+
 To inspect a deployed instance temporarily, add `SWAGGER_ENABLED=true` to the `guilliman` service
 environment and recreate the container; remove it afterwards.
 

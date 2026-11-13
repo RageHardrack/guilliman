@@ -4,13 +4,15 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-12
+
 ### Security
 
 - **docs**: Swagger UI (`/api/v1/docs`) and the OpenAPI JSON (`/api/v1/docs-json`) are served only when `SWAGGER_ENABLED=true`, so production no longer exposes the endpoint map. Local `start` scripts enable it.
 
 ### Changed
 
-- **loans**: `userId` in the create-loan body is documented as optional and deprecated. The owner always comes from the token; the field was already ignored and is still accepted for compatibility.
+- **loans, accounts**: `userId` in the create-loan and create-account bodies is documented as optional and deprecated. The owner always comes from the token; the field was already ignored and is still accepted for compatibility.
 
 ## [0.5.0] - 2026-11-06
 

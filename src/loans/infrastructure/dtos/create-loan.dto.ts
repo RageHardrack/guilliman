@@ -1,8 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateLoanDto {
-  @ApiProperty({ description: 'ID del usuario propietario' })
-  userId!: string;
+  @ApiPropertyOptional({
+    deprecated: true,
+    description:
+      'Ignorado: el propietario siempre es el usuario del token. Se acepta solo por compatibilidad.',
+  })
+  userId?: string;
 
   @ApiProperty({
     description: 'Nombre de la persona o contacto',

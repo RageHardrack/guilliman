@@ -3,11 +3,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { AccountType } from '../../domain/account.entity';
 
 export class CreateAccountDto {
-  @ApiProperty({
-    example: 'd8c48a73-98fe-4a4b-97e3-059adfbff04a',
-    description: 'ID del usuario propietario',
+  @ApiPropertyOptional({
+    deprecated: true,
+    description:
+      'Ignorado: el propietario siempre es el usuario del token. Se acepta solo por compatibilidad.',
   })
-  userId: string;
+  userId?: string;
 
   @ApiProperty({
     example: 'Cuenta Principal',

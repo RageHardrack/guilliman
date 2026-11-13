@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -14,7 +15,31 @@ export function isSwaggerEnabled(env: SwaggerEnv): boolean {
   return env.SWAGGER_ENABLED === 'true';
 }
 
-export function setupSwagger(app: INestApplication): void {
+/**
+ * Registers Swagger only when the flag allows it and logs the decision at
+ * startup, so a near-miss value ("TRUE", "1", an empty interpolation) shows
+ * up in the container logs instead of failing silently with a 404.
+ * Returns whether the routes were registered.
+ */
+export function configureSwagger(
+  app: INestApplication,
+  env: SwaggerEnv,
+): boolean {
+  const logger = new Logger('Swagger');
+
+  if (!isSwaggerEnabled(env)) {
+    logger.log(
+      `Swagger disabled: set SWAGGER_ENABLED=true to serve /${SWAGGER_PATH}`,
+    );
+    return false;
+  }
+
+  setupSwagger(app);
+  logger.log(`Swagger enabled at /${SWAGGER_PATH}`);
+  return true;
+}
+
+function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('Guilliman API')
     .setDescription('Backend API para el ecosistema Lascar y Financiapp')

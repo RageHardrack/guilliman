@@ -117,10 +117,21 @@ GITHUB_WEBHOOK_SECRET="tu_github_webhook_secret"
 
 ## 📖 Interactive Documentation (Swagger / OpenAPI)
 
-Once the server is running, the interactive documentation is available at:
+Swagger is **opt-in**: it is served only when `SWAGGER_ENABLED=true`. Any other value, or an unset
+variable, leaves both routes unregistered (they answer `404`).
+
+| Environment | `SWAGGER_ENABLED` | Docs |
+| --- | --- | --- |
+| Local (`bun run start`, `start:dev`, `start:dev:http`, `start:debug`) | set to `true` by the script | Served |
+| Production (Docker image, `start:prod`) | unset | Hidden |
+
+When enabled, the documentation is available at:
 
 - **Swagger UI**: `http://guilliman.localhost:1355/api/v1/docs` (or `http://localhost:3000/api/v1/docs`)
 - **OpenAPI JSON**: `http://guilliman.localhost:1355/api/v1/docs-json`
+
+To inspect a deployed instance temporarily, add `SWAGGER_ENABLED=true` to the `guilliman` service
+environment and recreate the container; remove it afterwards.
 
 ---
 

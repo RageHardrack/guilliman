@@ -132,4 +132,132 @@ describe('GithubSignatureGuard', () => {
     const result = guard.canActivate(context);
     expect(result).toBe(true);
   });
+
+  describe('with GITHUB_WEBHOOK_SECRET configured', () => {
+    const payload = JSON.stringify({ action: 'completed', run: 7 });
+
+    beforeEach(() => {
+      vi.mocked(configService.get).mockImplementation((key: string) => {
+        if (key === 'GITHUB_WEBHOOK_SECRET') return secret;
+        if (key === 'NODE_ENV') return 'production';
+        return null;
+      });
+      guard = new GithubSignatureGuard(configService);
+    });
+
+    it('accepts the capitalized X-Hub-Signature-256 header', () => {
+      const context = createMockContext(
+        { 'X-Hub-Signature-256': generateSignature(payload, secret) },
+        JSON.parse(payload),
+        Buffer.from(payload, 'utf8'),
+      );
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+
+    it('rejects a signature header without the sha256= prefix', () => {
+      const bareDigest = generateSignature(payload, secret).slice(7);
+      const context = createMockContext(
+        { 'x-hub-signature-256': bareDigest },
+        JSON.parse(payload),
+        Buffer.from(payload, 'utf8'),
+      );
+
+      expect(() => guard.canActivate(context)).toThrow(
+        'Missing or invalid X-Hub-Signature-256 header',
+      );
+    });
+
+    it('rejects a full-length digest signed with another secret', () => {
+      const context = createMockContext(
+        { 'x-hub-signature-256': generateSignature(payload, 'other-secret') },
+        JSON.parse(payload),
+        Buffer.from(payload, 'utf8'),
+      );
+
+      expect(() => guard.canActivate(context)).toThrow(
+        'Invalid webhook signature',
+      );
+    });
+
+    it('rejects a truncated digest', () => {
+      const truncated = generateSignature(payload, secret).slice(0, 39);
+      const context = createMockContext(
+        { 'x-hub-signature-256': truncated },
+        JSON.parse(payload),
+        Buffer.from(payload, 'utf8'),
+      );
+
+      expect(() => guard.canActivate(context)).toThrow(
+        'Invalid webhook signature',
+      );
+    });
+
+    it('rejects a valid signature for a body that was tampered with', () => {
+      const context = createMockContext(
+        { 'x-hub-signature-256': generateSignature(payload, secret) },
+        { action: 'deleted' },
+        Buffer.from('{"action":"deleted"}', 'utf8'),
+      );
+
+      expect(() => guard.canActivate(context)).toThrow(
+        'Invalid webhook signature',
+      );
+    });
+
+    it('verifies a raw body delivered as a string', () => {
+      const context = createMockContext(
+        { 'x-hub-signature-256': generateSignature(payload, secret) },
+        JSON.parse(payload),
+        payload,
+      );
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+
+    it('falls back to a Buffer body when there is no raw body', () => {
+      const context = createMockContext(
+        { 'x-hub-signature-256': generateSignature(payload, secret) },
+        Buffer.from(payload, 'utf8'),
+      );
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+
+    it('falls back to a string body when there is no raw body', () => {
+      const context = createMockContext(
+        { 'x-hub-signature-256': generateSignature(payload, secret) },
+        payload,
+      );
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+
+    it('falls back to the re-serialized JSON body when there is no raw body', () => {
+      const context = createMockContext(
+        { 'x-hub-signature-256': generateSignature(payload, secret) },
+        JSON.parse(payload),
+      );
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+
+    it('signs an empty payload when the request has no body', () => {
+      const context = createMockContext(
+        { 'x-hub-signature-256': generateSignature('', secret) },
+        undefined,
+      );
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+  });
+
+  it('treats an unset NODE_ENV as development when the secret is missing', () => {
+    vi.mocked(configService.get).mockReturnValue(undefined);
+    guard = new GithubSignatureGuard(configService);
+
+    const context = createMockContext({}, { action: 'completed' });
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
 });

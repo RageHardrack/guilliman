@@ -42,4 +42,36 @@ describe('Category Domain Entity', () => {
     expect(category.budgetGroup).toBe('NEEDS');
     expect(category.toJSON().budgetGroup).toBe('NEEDS');
   });
+
+  it('defaults its tax category and deduction type to NONE', () => {
+    const now = new Date();
+    const category = new Category({
+      id: 'cat-3',
+      userId: 'user-1',
+      name: 'Varios',
+      type: 'EXPENSE',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(category.taxCategory).toBe('NONE');
+    expect(category.taxDeductionType).toBe('NONE');
+  });
+
+  it('returns the tax category and deduction type it was given', () => {
+    const now = new Date();
+    const category = new Category({
+      id: 'cat-4',
+      userId: 'user-1',
+      name: 'Restaurantes',
+      type: 'EXPENSE',
+      taxCategory: 'DEDUCTIBLE_EXPENSE_3UIT',
+      taxDeductionType: 'RESTAURANT_BAR',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(category.taxCategory).toBe('DEDUCTIBLE_EXPENSE_3UIT');
+    expect(category.taxDeductionType).toBe('RESTAURANT_BAR');
+  });
 });

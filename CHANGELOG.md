@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- **ci**: unit tests run with `test:cov`, so a pull request that drops coverage below the thresholds in `vitest.config.ts` (80/70/80/80) now fails CI.
+- **tests**: branch coverage rises from 66.37% to 71.4% with behavior tests for the GitHub webhook signature guard, the SUNAT tax service, and the transaction and category entities.
+
 ## [0.5.2] - 2026-11-13
 
 ### Added

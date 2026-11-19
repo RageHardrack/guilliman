@@ -93,7 +93,7 @@ Guilliman includes a native Discord Bot module and a webhook receiver for real-t
 - **`DiscordNotificationService`**: Sends messages and formatted embeds to specific Discord channels.
 - **`WorkflowEmbedBuilder`**: Builds color-coded rich embeds (green = success, red = failure, blue = in progress, orange = timeout/alert) with links to the repository, branch, truncated commit, and duration.
 - **`ReleaseEmbedBuilder`**: Builds rich embeds for release publications and changelog notes from `release` events.
-- **`GithubSignatureGuard`**: Validates HMAC-SHA256 signatures (`X-Hub-Signature-256`) in constant time (`crypto.timingSafeEqual`).
+- **`GithubSignatureGuard`**: Validates HMAC-SHA256 signatures (`X-Hub-Signature-256`) in constant time (`crypto.timingSafeEqual`) over the exact raw request bytes. Without `GITHUB_WEBHOOK_SECRET` it rejects every request with 401, unless `GITHUB_WEBHOOK_ALLOW_UNSIGNED=true` outside production.
 - **`GithubWebhookController`**: `POST /api/v1/webhooks/github` endpoint that handles `workflow_run` and `release` events and delegates them to the corresponding Discord channels.
 
 ### Environment Variables
@@ -103,6 +103,7 @@ DISCORD_BOT_TOKEN="tu_discord_bot_token"
 DISCORD_NOTIFICATIONS_CHANNEL_ID="tu_canal_discord_id"
 DISCORD_CHANGELOG_CHANNEL_ID="tu_canal_changelog_discord_id" # Optional: dedicated channel for releases; when unset, falls back to DISCORD_NOTIFICATIONS_CHANNEL_ID
 GITHUB_WEBHOOK_SECRET="tu_github_webhook_secret"
+GITHUB_WEBHOOK_ALLOW_UNSIGNED="false" # Local development only: "true" accepts unsigned webhooks when the secret is unset; ignored in production
 ```
 
 ### GitHub Webhooks Setup

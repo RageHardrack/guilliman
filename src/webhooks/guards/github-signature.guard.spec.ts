@@ -13,7 +13,7 @@ describe('GithubSignatureGuard', () => {
 
   const createMockContext = (
     headers: Record<string, string>,
-    body: any,
+    body: unknown,
     rawBody?: Buffer | string,
   ): ExecutionContext => {
     const request = {
@@ -119,18 +119,70 @@ describe('GithubSignatureGuard', () => {
     expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
 
-  it('should allow request in development/test mode when GITHUB_WEBHOOK_SECRET is unset', () => {
-    vi.mocked(configService.get).mockImplementation((key: string) => {
-      if (key === 'GITHUB_WEBHOOK_SECRET') return undefined;
-      if (key === 'NODE_ENV') return 'development';
-      return null;
+  describe('without GITHUB_WEBHOOK_SECRET', () => {
+    const configure = (env: Record<string, string | undefined>): void => {
+      vi.mocked(configService.get).mockImplementation(
+        (key: string) => env[key],
+      );
+      guard = new GithubSignatureGuard(configService);
+    };
+
+    it.each(['development', 'test', undefined])(
+      'rejects an unsigned request when NODE_ENV is %s',
+      (nodeEnv) => {
+        configure({ NODE_ENV: nodeEnv });
+
+        const context = createMockContext({}, { action: 'completed' });
+
+        expect(() => guard.canActivate(context)).toThrow(
+          'GITHUB_WEBHOOK_SECRET is not configured',
+        );
+      },
+    );
+
+    it('allows an unsigned request outside production when GITHUB_WEBHOOK_ALLOW_UNSIGNED is "true"', () => {
+      configure({
+        NODE_ENV: 'development',
+        GITHUB_WEBHOOK_ALLOW_UNSIGNED: 'true',
+      });
+
+      const context = createMockContext({}, { action: 'completed' });
+
+      expect(guard.canActivate(context)).toBe(true);
     });
 
-    guard = new GithubSignatureGuard(configService);
+    it('treats an unset NODE_ENV as development for the explicit opt-in', () => {
+      configure({ GITHUB_WEBHOOK_ALLOW_UNSIGNED: 'true' });
 
-    const context = createMockContext({}, { action: 'completed' });
-    const result = guard.canActivate(context);
-    expect(result).toBe(true);
+      const context = createMockContext({}, { action: 'completed' });
+
+      expect(guard.canActivate(context)).toBe(true);
+    });
+
+    it('ignores GITHUB_WEBHOOK_ALLOW_UNSIGNED in production', () => {
+      configure({
+        NODE_ENV: 'production',
+        GITHUB_WEBHOOK_ALLOW_UNSIGNED: 'true',
+      });
+
+      const context = createMockContext({}, { action: 'completed' });
+
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    });
+
+    it.each(['false', '1', 'TRUE', 'yes', ''])(
+      'rejects an unsigned request when GITHUB_WEBHOOK_ALLOW_UNSIGNED is %j',
+      (value) => {
+        configure({
+          NODE_ENV: 'development',
+          GITHUB_WEBHOOK_ALLOW_UNSIGNED: value,
+        });
+
+        const context = createMockContext({}, { action: 'completed' });
+
+        expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      },
+    );
   });
 
   describe('with GITHUB_WEBHOOK_SECRET configured', () => {
@@ -250,14 +302,5 @@ describe('GithubSignatureGuard', () => {
 
       expect(guard.canActivate(context)).toBe(true);
     });
-  });
-
-  it('treats an unset NODE_ENV as development when the secret is missing', () => {
-    vi.mocked(configService.get).mockReturnValue(undefined);
-    guard = new GithubSignatureGuard(configService);
-
-    const context = createMockContext({}, { action: 'completed' });
-
-    expect(guard.canActivate(context)).toBe(true);
   });
 });

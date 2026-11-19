@@ -6,54 +6,11 @@ import {
 
 import { AppModule } from './app.module';
 import { configureSwagger } from './swagger';
+import { registerBodyParsers } from './body-parsers';
 
 async function bootstrap() {
   const adapter = new FastifyAdapter();
-
-  adapter.useBodyParser(
-    'application/json',
-    false,
-    {},
-    (_req: any, body: any, done: any) => {
-      const text = Buffer.isBuffer(body)
-        ? body.toString('utf-8')
-        : String(body ?? '');
-      if (!text.trim()) {
-        done(null, {});
-        return;
-      }
-      try {
-        const parsed = JSON.parse(text);
-        done(null, parsed);
-      } catch {
-        done(null, text);
-      }
-    },
-  );
-
-  adapter.useBodyParser(
-    'text/plain',
-    false,
-    {},
-    (_req: any, body: any, done: any) => {
-      const text = Buffer.isBuffer(body)
-        ? body.toString('utf-8')
-        : String(body ?? '');
-      done(null, text);
-    },
-  );
-
-  adapter.useBodyParser(
-    'text/html',
-    false,
-    {},
-    (_req: any, body: any, done: any) => {
-      const text = Buffer.isBuffer(body)
-        ? body.toString('utf-8')
-        : String(body ?? '');
-      done(null, text);
-    },
-  );
+  registerBodyParsers(adapter);
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,

@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **webhooks**: the GitHub signature is verified over the exact bytes GitHub sent. The JSON body parser now keeps the raw body, so a payload whose bytes differ from its re-serialized JSON (for example `1.0` or `<` escapes) is no longer rejected with 401.
+
 ### Changed
 
 - **ci**: unit tests run with `test:cov`, so a pull request that drops coverage below the thresholds in `vitest.config.ts` (80/70/80/80) now fails CI.

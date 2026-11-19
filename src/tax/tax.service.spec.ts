@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -196,6 +196,27 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
         expect(update).not.toHaveBeenCalled();
       });
 
+      it('returns only the tax profile fields of the updated user', async () => {
+        findUnique.mockResolvedValue({ id: 'user-1' });
+        update.mockResolvedValue({
+          id: 'user-1',
+          email: 'ana@example.com',
+          password: 'hashed-password',
+          role: 'ADMIN',
+          taxProfileEnabled: true,
+          taxCountry: 'PE',
+          taxRuc: '10456789013',
+        });
+
+        await expect(
+          service.updateProfile('user-1', { taxProfileEnabled: true }),
+        ).resolves.toStrictEqual({
+          taxProfileEnabled: true,
+          taxCountry: 'PE',
+          taxRuc: '10456789013',
+        });
+      });
+
       it('writes country and RUC only when they are provided', async () => {
         findUnique.mockResolvedValue({ id: 'user-1' });
         update.mockResolvedValue({
@@ -244,6 +265,18 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
 
       const items = await service.getDeductibleItems('user-1', 2026);
 
+      expect(findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          type: 'EXPENSE',
+          date: {
+            gte: new Date(2026, 0, 1),
+            lte: new Date(2026, 11, 31, 23, 59, 59),
+          },
+          taxCategory: 'DEDUCTIBLE_EXPENSE_3UIT',
+        },
+        orderBy: { date: 'desc' },
+      });
       expect(items.map((item) => [item.id, item.deductionPercentage])).toEqual([
         ['hotel', 15],
         ['professional', 30],
@@ -289,6 +322,15 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
 
         const result = await service.calculateProjection('user-1', 2026);
 
+        expect(findMany).toHaveBeenNthCalledWith(1, {
+          where: {
+            userId: 'user-1',
+            date: {
+              gte: new Date(2026, 0, 1),
+              lte: new Date(2026, 11, 31, 23, 59, 59),
+            },
+          },
+        });
         // 20% of 700,000 = 140,000, capped at 24 UIT = 128,400
         expect(result.fourthCategoryDeduction20).toBe(128400);
         expect(result.netFourthCategory).toBe(571600);
@@ -372,6 +414,29 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
           '2026-12',
         );
 
+        const fourthCategoryIncome = {
+          userId: 'user-1',
+          type: 'INCOME',
+          taxCategory: 'FOURTH_CATEGORY_INCOME',
+        };
+        expect(findMany).toHaveBeenNthCalledWith(1, {
+          where: {
+            ...fourthCategoryIncome,
+            date: {
+              gte: new Date(2026, 11, 1),
+              lte: new Date(2026, 12, 0, 23, 59, 59),
+            },
+          },
+        });
+        expect(findMany).toHaveBeenNthCalledWith(2, {
+          where: {
+            ...fourthCategoryIncome,
+            date: {
+              gte: new Date(2026, 0, 1),
+              lte: new Date(2026, 11, 0, 23, 59, 59),
+            },
+          },
+        });
         expect(checklist.datincorpRheIssued).toBe(false);
         expect(checklist.calculatedMonthlyAdvanceTax).toBe(400);
         // 8% of 32,000 already compensated: 2,560 of the 2,800 credit
@@ -383,14 +448,19 @@ describe('TaxService (SUNAT 4ta y 5ta Categoría)', () => {
         expect(checklist.checklistTasks[2].completed).toBe(false);
       });
 
-      it('falls back to January 2026 for an empty period', async () => {
-        const checklist = await service.getMonthlyChecklist('user-1', '');
-
-        expect(checklist.fiscalYear).toBe(2026);
-        expect(checklist.month).toBe(1);
-        expect(checklist.calculatedMonthlyAdvanceTax).toBe(0);
-        expect(checklist.datincorpRheIssued).toBe(false);
-      });
+      it.each(['', '2026', '2026-1', '2026-00', '2026-13', '26-05', 'abc'])(
+        'rejects the malformed period %j without querying',
+        async (period) => {
+          await expect(
+            service.getMonthlyChecklist('user-1', period),
+          ).rejects.toThrow(
+            new BadRequestException(
+              `Periodo inválido "${period}": usa el formato YYYY-MM.`,
+            ),
+          );
+          expect(findMany).not.toHaveBeenCalled();
+        },
+      );
     });
 
     describe('scenario simulation', () => {

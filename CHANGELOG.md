@@ -8,11 +8,13 @@ All notable changes to this project are documented in this file. The format foll
 
 - **webhooks**: the GitHub signature is verified over the exact bytes GitHub sent. The JSON body parser now keeps the raw body, so a payload whose bytes differ from its re-serialized JSON (for example `1.0` or `<` escapes) is no longer rejected with 401.
 - **webhooks**: a missing `GITHUB_WEBHOOK_SECRET` now rejects GitHub webhooks with 401 in every environment, not only when `NODE_ENV=production`. Local development can skip verification only with `GITHUB_WEBHOOK_ALLOW_UNSIGNED=true`, which production ignores.
+- **tax**: the monthly checklist rejects a period that is not `YYYY-MM` with a 400 error, instead of silently falling back to January 2026 and reporting a malformed due date such as `2026-undefined-20`.
 
 ### Changed
 
 - **ci**: unit tests run with `test:cov`, so a pull request that drops coverage below the thresholds in `vitest.config.ts` (80/70/80/80) now fails CI.
 - **tests**: branch coverage rises from 66.37% to 71.4% with behavior tests for the GitHub webhook signature guard, the SUNAT tax service, and the transaction and category entities.
+- **tests**: the tax service tests pin the Prisma query arguments (user, tax category, date windows, order) and the exact tax profile returned after an update, so a query that loses its `userId` filter or a response that leaks user fields fails the suite.
 
 ## [0.5.2] - 2026-11-13
 

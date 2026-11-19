@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file. The format foll
 - **webhooks**: the GitHub signature is verified over the exact bytes GitHub sent. The JSON body parser now keeps the raw body, so a payload whose bytes differ from its re-serialized JSON (for example `1.0` or `<` escapes) is no longer rejected with 401.
 - **webhooks**: a missing `GITHUB_WEBHOOK_SECRET` now rejects GitHub webhooks with 401 in every environment, not only when `NODE_ENV=production`. Local development can skip verification only with `GITHUB_WEBHOOK_ALLOW_UNSIGNED=true`, which production ignores.
 - **tax**: the monthly checklist rejects a period that is not `YYYY-MM` with a 400 error, instead of silently falling back to January 2026 and reporting a malformed due date such as `2026-undefined-20`.
+- **categories**: category API responses always include `taxCategory` and `taxDeductionType`, defaulting to `NONE` like the entity getters, instead of omitting them when unset.
 
 ### Changed
 

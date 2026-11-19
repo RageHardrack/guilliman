@@ -56,6 +56,11 @@ describe('Category Domain Entity', () => {
 
     expect(category.taxCategory).toBe('NONE');
     expect(category.taxDeductionType).toBe('NONE');
+    expect(category.toJSON()).toMatchObject({
+      taxCategory: 'NONE',
+      taxDeductionType: 'NONE',
+      budgetGroup: 'UNASSIGNED',
+    });
   });
 
   it('returns the tax category and deduction type it was given', () => {
@@ -73,5 +78,9 @@ describe('Category Domain Entity', () => {
 
     expect(category.taxCategory).toBe('DEDUCTIBLE_EXPENSE_3UIT');
     expect(category.taxDeductionType).toBe('RESTAURANT_BAR');
+    expect(category.toJSON()).toMatchObject({
+      taxCategory: 'DEDUCTIBLE_EXPENSE_3UIT',
+      taxDeductionType: 'RESTAURANT_BAR',
+    });
   });
 });

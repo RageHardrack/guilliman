@@ -15,6 +15,13 @@ import { MCP_READ_ONLY_TOOL_NAMES } from '../mcp-server.factory';
 import { hashMcpAccessToken } from '../tokens/domain/mcp-access-token';
 import { PrismaService } from '../../infrastructure/database/prisma/prisma.service';
 import { MCP_TOKEN_STORE_PORT } from '../tokens/application/ports/mcp-token.repository.port';
+import {
+  mcpHttpRouteUrl,
+  allowBodilessMethodsOnMcpRoute,
+} from '../mcp-bodiless-methods.hook';
+
+/** The prefix main.ts serves the API under. */
+const GLOBAL_PREFIX = 'api/v1';
 
 const OWNER_A: User = user('owner-a', 'a@lascar.pe');
 const OWNER_B: User = user('owner-b', 'b@lascar.pe');
@@ -82,14 +89,119 @@ function lookup(
 }
 
 /**
+ * Boots the real MCP module graph over Fastify with only Prisma and the token
+ * store faked, so no database is touched. `productionParsers` mirrors main.ts;
+ * turning it off keeps the default Fastify JSON parser, which is what refuses an
+ * empty body, so the 405 can be proven independent of the app's own parser.
+ */
+interface Harness {
+  app: NestFastifyApplication;
+  prisma: Record<string, unknown>;
+  fiscalTools: FiscalTools;
+  findTokenByHash: ReturnType<typeof vi.fn>;
+  markUsed: ReturnType<typeof vi.fn>;
+}
+
+async function bootHarness(productionParsers: boolean): Promise<Harness> {
+  // Production body parsers, so a malformed POST body reaches the transport
+  // as text instead of dying inside Fastify.
+  const adapter = new FastifyAdapter();
+  if (productionParsers) {
+    registerBodyParsers(adapter);
+  }
+  // main.ts installs this narrow rule next to the body parsers, in both
+  // wirings: the 405 of the MCP route must not depend on a tolerant global
+  // JSON parser (S14).
+  allowBodilessMethodsOnMcpRoute(adapter, mcpHttpRouteUrl(GLOBAL_PREFIX));
+
+  // S5: neither env identity may ever reach a tool over HTTP.
+  process.env.MCP_USER_ID = 'env-user-must-be-ignored';
+  process.env.MCP_USER_EMAIL = 'env@lascar.pe';
+
+  const findTokenByHash = vi.fn(async (hash: string) => {
+    if (hash === hashMcpAccessToken(TOKEN_A)) {
+      return lookup('token-a', OWNER_A, hash);
+    }
+    if (hash === hashMcpAccessToken(TOKEN_B)) {
+      return lookup('token-b', OWNER_B, hash);
+    }
+    if (hash === hashMcpAccessToken(TOKEN_REVOKED)) {
+      return lookup('token-r', OWNER_A, hash, true);
+    }
+    return null;
+  });
+  const markUsed = vi.fn().mockResolvedValue(undefined);
+
+  // The real FinanceTools over a mocked Prisma: the no-write and owner-scope
+  // claims are then proven at the database boundary, not at a stub.
+  const prisma: Record<string, unknown> = {
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    account: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn(),
+    },
+    loan: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    loanPayment: { create: vi.fn() },
+    transaction: {
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+    },
+    category: { findFirst: vi.fn() },
+    $transaction: vi.fn(),
+  };
+
+  const fiscalTools = {
+    getFiscalSummary: vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: '{"fiscalYear":2026}' }],
+    }),
+    getMonthlyTaxChecklist: vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: '{"period":"2026-09"}' }],
+    }),
+    simulateTaxScenario: vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: '{"taxableIncomeDifference":1000}' }],
+    }),
+  } as unknown as FiscalTools;
+
+  const moduleRef = await Test.createTestingModule({ imports: [McpModule] })
+    .overrideProvider(PrismaService)
+    .useValue(prisma)
+    .overrideProvider(MCP_TOKEN_STORE_PORT)
+    .useValue({ findTokenByHash, markUsed })
+    .overrideProvider(FiscalTools)
+    .useValue(fiscalTools)
+    .compile();
+
+  const app = moduleRef.createNestApplication<NestFastifyApplication>(adapter);
+  app.setGlobalPrefix(GLOBAL_PREFIX);
+  await app.init();
+  await app.getHttpAdapter().getInstance().ready();
+
+  return { app, prisma, fiscalTools, findTokenByHash, markUsed };
+}
+
+const closeHarness = async (harness: Harness | undefined): Promise<void> => {
+  delete process.env.MCP_USER_ID;
+  delete process.env.MCP_USER_EMAIL;
+  await harness?.app.close();
+};
+
+/**
  * S2/S4/S5/S6/S7 over the real HTTP surface and the real module graph: the
  * genuine `McpTokenService.verify` guards the route, which answers only with
  * the five read tools and always as the token owner. Only Prisma and the token
  * store are faked, so no database is touched.
  */
 describe('POST /api/v1/mcp (Streamable HTTP, stateless)', () => {
+  let harness: Harness | undefined;
   let app: NestFastifyApplication;
-  let adapter: FastifyAdapter;
   let fiscalTools: FiscalTools;
   let prisma: Record<string, unknown>;
   let findTokenByHash: ReturnType<typeof vi.fn>;
@@ -114,86 +226,13 @@ describe('POST /api/v1/mcp (Streamable HTTP, stateless)', () => {
   ) => post(rpc(id, 'tools/call', { name, arguments: args }), token);
 
   beforeEach(async () => {
-    // Production body parsers, so a malformed POST body reaches the transport
-    // as text instead of dying inside Fastify.
-    adapter = new FastifyAdapter();
-    registerBodyParsers(adapter);
-
-    // S5: neither env identity may ever reach a tool over HTTP.
-    process.env.MCP_USER_ID = 'env-user-must-be-ignored';
-    process.env.MCP_USER_EMAIL = 'env@lascar.pe';
-
-    findTokenByHash = vi.fn(async (hash: string) => {
-      if (hash === hashMcpAccessToken(TOKEN_A)) {
-        return lookup('token-a', OWNER_A, hash);
-      }
-      if (hash === hashMcpAccessToken(TOKEN_B)) {
-        return lookup('token-b', OWNER_B, hash);
-      }
-      if (hash === hashMcpAccessToken(TOKEN_REVOKED)) {
-        return lookup('token-r', OWNER_A, hash, true);
-      }
-      return null;
-    });
-    markUsed = vi.fn().mockResolvedValue(undefined);
-
-    // The real FinanceTools over a mocked Prisma: the no-write and owner-scope
-    // claims are then proven at the database boundary, not at a stub.
-    prisma = {
-      user: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        findFirst: vi.fn().mockResolvedValue(null),
-      },
-      account: {
-        findMany: vi.fn().mockResolvedValue([]),
-        findUnique: vi.fn().mockResolvedValue(null),
-        update: vi.fn(),
-      },
-      loan: {
-        findMany: vi.fn().mockResolvedValue([]),
-        findUnique: vi.fn(),
-        update: vi.fn(),
-      },
-      loanPayment: { create: vi.fn() },
-      transaction: {
-        findMany: vi.fn().mockResolvedValue([]),
-        create: vi.fn(),
-      },
-      category: { findFirst: vi.fn() },
-      $transaction: vi.fn(),
-    };
-
-    fiscalTools = {
-      getFiscalSummary: vi.fn().mockResolvedValue({
-        content: [{ type: 'text', text: '{"fiscalYear":2026}' }],
-      }),
-      getMonthlyTaxChecklist: vi.fn().mockResolvedValue({
-        content: [{ type: 'text', text: '{"period":"2026-09"}' }],
-      }),
-      simulateTaxScenario: vi.fn().mockResolvedValue({
-        content: [{ type: 'text', text: '{"taxableIncomeDifference":1000}' }],
-      }),
-    } as unknown as FiscalTools;
-
-    const moduleRef = await Test.createTestingModule({ imports: [McpModule] })
-      .overrideProvider(PrismaService)
-      .useValue(prisma)
-      .overrideProvider(MCP_TOKEN_STORE_PORT)
-      .useValue({ findTokenByHash, markUsed })
-      .overrideProvider(FiscalTools)
-      .useValue(fiscalTools)
-      .compile();
-
-    app = moduleRef.createNestApplication<NestFastifyApplication>(adapter);
-    app.setGlobalPrefix('api/v1');
-    await app.init();
-    await app.getHttpAdapter().getInstance().ready();
+    harness = await bootHarness(true);
+    ({ app, fiscalTools, prisma, findTokenByHash, markUsed } = harness);
   });
 
   afterEach(async () => {
-    delete process.env.MCP_USER_ID;
-    delete process.env.MCP_USER_EMAIL;
-    await app.close();
+    await closeHarness(harness);
+    harness = undefined;
   });
 
   it('negocia initialize sin sesión y sin Mcp-Session-Id', async () => {
@@ -410,6 +449,59 @@ describe('POST /api/v1/mcp (Streamable HTTP, stateless)', () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it.each(['GET', 'DELETE'] as const)(
+    'S14: %s autenticado con content-type JSON y cuerpo vacío llega al controlador y responde 405',
+    async (method) => {
+      const res = await app.inject({
+        method,
+        url: '/api/v1/mcp',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+          authorization: `Bearer ${TOKEN_A}`,
+        },
+        payload: '',
+      });
+
+      expect(res.statusCode).toBe(405);
+      expect(res.headers.allow).toBe('POST');
+      const body = JSON.parse(res.payload);
+      expect(body.jsonrpc).toBe('2.0');
+      expect(body.error.code).toBe(-32000);
+      expect(body.error.message).toBe('Method not allowed.');
+    },
+  );
+
+  it.each(['GET', 'DELETE'] as const)(
+    'S14: %s con content-type JSON y cuerpo vacío sin token sigue siendo 401',
+    async (method) => {
+      const res = await app.inject({
+        method,
+        url: '/api/v1/mcp',
+        headers: { 'content-type': 'application/json' },
+        payload: '',
+      });
+
+      expect(res.statusCode).toBe(401);
+    },
+  );
+
+  it('S14: DELETE con un cuerpo JSON real también responde 405', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/mcp',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        authorization: `Bearer ${TOKEN_A}`,
+      },
+      payload: rpc(14, 'tools/list', {}),
+    });
+
+    expect(res.statusCode).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+  });
+
   it.each([
     ['GET', '/api/v1/mcp/sse'],
     ['POST', '/api/v1/mcp/messages?sessionId=x'],
@@ -435,4 +527,91 @@ describe('POST /api/v1/mcp (Streamable HTTP, stateless)', () => {
       expect(JSON.parse(res.payload).error.message).toContain('Parse error');
     },
   );
+});
+
+/**
+ * S14, isolated from the application's own body parser: the 405 of the
+ * bodiless MCP methods must come from the route itself, not from the tolerant
+ * JSON parser that `registerBodyParsers` installs for webhook signatures.
+ * Fastify's default JSON parser refuses an empty body, so this is where the
+ * route contract is proven, and where the narrowness of the fix is proven too:
+ * another route keeps the status it had before.
+ */
+describe('GET/DELETE /api/v1/mcp con el parser JSON por defecto de Fastify', () => {
+  let harness: Harness | undefined;
+  let app: NestFastifyApplication;
+
+  beforeEach(async () => {
+    harness = await bootHarness(false);
+    app = harness.app;
+  });
+
+  afterEach(async () => {
+    await closeHarness(harness);
+    harness = undefined;
+  });
+
+  const bodiless = (method: 'GET' | 'DELETE', token?: string) =>
+    app.inject({
+      method,
+      url: '/api/v1/mcp',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      payload: '',
+    });
+
+  it.each(['GET', 'DELETE'] as const)(
+    '%s autenticado con content-type JSON y cuerpo vacío responde 405 con Allow',
+    async (method) => {
+      const res = await bodiless(method, TOKEN_A);
+
+      expect(res.statusCode).toBe(405);
+      expect(res.headers.allow).toBe('POST');
+      const body = JSON.parse(res.payload);
+      expect(body.jsonrpc).toBe('2.0');
+      expect(body.error.code).toBe(-32000);
+      expect(body.error.message).toBe('Method not allowed.');
+    },
+  );
+
+  it.each(['GET', 'DELETE'] as const)(
+    '%s sin token con content-type JSON y cuerpo vacío sigue siendo 401',
+    async (method) => {
+      const res = await bodiless(method);
+
+      expect(res.statusCode).toBe(401);
+    },
+  );
+
+  it('un DELETE de otra ruta conserva su respuesta actual al cuerpo JSON vacío', async () => {
+    // Not the MCP route: the Fastify parser still answers it first (400), so
+    // the narrow fix did not leak to the rest of the API.
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/mcp/tokens/tok-1',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('un DELETE con cuerpo JSON real en la ruta MCP sigue llegando al controlador', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/mcp',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        authorization: `Bearer ${TOKEN_A}`,
+      },
+      payload: rpc(15, 'tools/list', {}),
+    });
+
+    expect(res.statusCode).toBe(405);
+    expect(res.headers.allow).toBe('POST');
+  });
 });

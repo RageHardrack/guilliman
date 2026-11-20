@@ -29,6 +29,7 @@ describe('PrismaMcpTokenStore (S2)', () => {
       findMany: ReturnType<typeof vi.fn>;
       findUnique: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
       updateMany: ReturnType<typeof vi.fn>;
     };
   };
@@ -40,6 +41,7 @@ describe('PrismaMcpTokenStore (S2)', () => {
         findMany: vi.fn().mockResolvedValue([{ ...row, user: undefined }]),
         findUnique: vi.fn().mockResolvedValue(row),
         update: vi.fn().mockResolvedValue(undefined),
+        count: vi.fn().mockResolvedValue(0),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
@@ -111,18 +113,50 @@ describe('PrismaMcpTokenStore (S2)', () => {
     });
   });
 
-  it('revokes scoped to the owner and reports whether a row changed', async () => {
+  it('revokes only an active token, scoped to the owner', async () => {
     const revoked = await store.revoke('tok-1', 'user-1');
 
-    // An owner revoking their own token twice stays idempotent: the row is
-    // theirs either way, so the filter is ownership, not revokedAt.
+    // `revokedAt: null` in the filter is what keeps the first revocation time
+    // from being rewritten by a second revoke (S13).
     expect(prisma.mcpToken.updateMany).toHaveBeenCalledWith({
-      where: { id: 'tok-1', userId: 'user-1' },
+      where: { id: 'tok-1', userId: 'user-1', revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
     expect(revoked).toBe(true);
-
-    prisma.mcpToken.updateMany.mockResolvedValue({ count: 0 });
-    await expect(store.revoke('tok-1', 'other-user')).resolves.toBe(false);
   });
+
+  it('keeps the original revokedAt when the owner revokes twice, writing nothing', async () => {
+    // The guarded update changes zero rows because the token is already
+    // revoked, and the owner still gets the same 200 answer (S13).
+    prisma.mcpToken.updateMany.mockResolvedValue({ count: 0 });
+    prisma.mcpToken.count.mockResolvedValue(1);
+
+    await expect(store.revoke('tok-1', 'user-1')).resolves.toBe(true);
+
+    expect(prisma.mcpToken.count).toHaveBeenCalledWith({
+      where: { id: 'tok-1', userId: 'user-1' },
+    });
+    expect(prisma.mcpToken.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.mcpToken.update).not.toHaveBeenCalled();
+  });
+
+  it.each(['foreign token', 'missing token'])(
+    'reports no change for a %s without writing it',
+    async (_label) => {
+      prisma.mcpToken.updateMany.mockResolvedValue({ count: 0 });
+      prisma.mcpToken.count.mockResolvedValue(0);
+
+      await expect(store.revoke('tok-1', 'other-user')).resolves.toBe(false);
+
+      // Ownership scoping lives in both filters: zero rows read, zero written.
+      expect(prisma.mcpToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'tok-1', userId: 'other-user', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      expect(prisma.mcpToken.count).toHaveBeenCalledWith({
+        where: { id: 'tok-1', userId: 'other-user' },
+      });
+      expect(prisma.mcpToken.update).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Fixed
+
+- **mcp**: revoking a token that is already revoked keeps its original `revokedAt`. The owner still gets the same `200 {"success":true}` answer as the first revoke, and a foreign or missing token still answers `404` with no row written.
+- **mcp**: `GET` and `DELETE /api/v1/mcp` answer `405` with `Allow: POST` even when the client sends `Content-Type: application/json` with an empty body. The bodiless methods of that route are no longer handed to a JSON body parser, so the answer comes from the route itself; every other route keeps the status it gave an empty JSON body before.
+
 ## [0.6.0] - 2026-11-20
 
 ### Added

@@ -34,8 +34,8 @@ jobs:
       - name: Lint code
         run: bun run lint
 
-      - name: Run unit tests
-        run: bun run test
+      - name: Run unit tests with coverage thresholds
+        run: bun run test:cov
 
       - name: Build application
         run: bun run build

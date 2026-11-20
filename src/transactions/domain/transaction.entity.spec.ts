@@ -50,4 +50,53 @@ describe('Transaction Domain Entity', () => {
     expect(transaction.exchangeRate).toBe(3.75);
     expect(transaction.toJSON().destinationAmount).toBe(187.5);
   });
+
+  describe('tax fields', () => {
+    const now = new Date('2026-11-13T12:00:00.000Z');
+    const base = {
+      id: 'tx-3',
+      userId: 'user-1',
+      accountId: 'acc-1',
+      amount: 3500,
+      type: 'INCOME' as const,
+      date: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    it('defaults to no tax category, document, withholding or deduction', () => {
+      const transaction = new Transaction(base);
+
+      expect(transaction.taxCategory).toBe('NONE');
+      expect(transaction.taxDocumentType).toBe('NONE');
+      expect(transaction.taxWithholdingAmount).toBe(0);
+      expect(transaction.taxDeductionType).toBe('NONE');
+    });
+
+    it('treats a null withholding amount as zero', () => {
+      const transaction = new Transaction({
+        ...base,
+        taxWithholdingAmount: null,
+      });
+
+      expect(transaction.taxWithholdingAmount).toBe(0);
+    });
+
+    it('returns the tax fields it was given', () => {
+      const transaction = new Transaction({
+        ...base,
+        taxCategory: 'FOURTH_CATEGORY_INCOME',
+        taxDocumentType: 'RXH',
+        taxDocumentNumber: 'E001-42',
+        taxWithholdingAmount: 280,
+        taxDeductionType: 'PROFESSIONAL_SERVICE',
+      });
+
+      expect(transaction.taxCategory).toBe('FOURTH_CATEGORY_INCOME');
+      expect(transaction.taxDocumentType).toBe('RXH');
+      expect(transaction.taxDocumentNumber).toBe('E001-42');
+      expect(transaction.taxWithholdingAmount).toBe(280);
+      expect(transaction.taxDeductionType).toBe('PROFESSIONAL_SERVICE');
+    });
+  });
 });

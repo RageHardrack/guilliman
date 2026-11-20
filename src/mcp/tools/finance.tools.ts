@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { User, TaxCategory, TaxDeductionType } from '@prisma/client';
+import { TaxCategory, TaxDeductionType } from '@prisma/client';
 
+import type { McpActor } from '../mcp-actor';
 import { PrismaService } from '../../infrastructure/database/prisma/prisma.service';
 
 @Injectable()
@@ -9,7 +10,7 @@ export class FinanceTools {
   constructor(private readonly prisma: PrismaService) {}
 
   async getNetWorthAndLiquidity(
-    adminUser: User,
+    adminUser: McpActor,
     args: { base_currency: 'USD' | 'PEN' | 'VES' },
   ) {
     const accounts = await this.prisma.account.findMany({
@@ -138,7 +139,7 @@ export class FinanceTools {
     };
   }
 
-  async getBudgetAudit(adminUser: User, args: { period: string }) {
+  async getBudgetAudit(adminUser: McpActor, args: { period: string }) {
     const [yearStr, monthStr] = args.period.split('-');
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10);
@@ -249,7 +250,7 @@ export class FinanceTools {
   }
 
   async createTransaction(
-    adminUser: User,
+    adminUser: McpActor,
     args: {
       account_id: string;
       amount: number;
@@ -347,7 +348,7 @@ export class FinanceTools {
   }
 
   async recordDebtPayment(
-    adminUser: User,
+    adminUser: McpActor,
     args: {
       source_account_id: string;
       target_debt_id: string;

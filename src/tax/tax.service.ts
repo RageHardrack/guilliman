@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../infrastructure/database/prisma/prisma.service';
 import { UpdateTaxProfileDto } from './infrastructure/dtos/update-tax-profile.dto';
@@ -16,6 +20,9 @@ import {
 } from './domain/tax-rules.constant';
 
 // Parámetros históricos de UIT por año fiscal en Perú
+/** A monthly tax period: four-digit year and a month from 01 to 12. */
+const MONTHLY_PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 export const UIT_ANNUAL_VALUES: Record<number, number> = {
   2024: 5150,
   2025: 5350,
@@ -365,9 +372,14 @@ export class TaxService {
     userId: string,
     period: string,
   ): Promise<MonthlyTaxChecklistResult> {
+    if (!MONTHLY_PERIOD_PATTERN.test(period)) {
+      throw new BadRequestException(
+        `Periodo inválido "${period}": usa el formato YYYY-MM.`,
+      );
+    }
     const [yearStr, monthStr] = period.split('-');
-    const fiscalYear = parseInt(yearStr, 10) || 2026;
-    const month = parseInt(monthStr, 10) || 1;
+    const fiscalYear = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
 
     const startOfMonth = new Date(fiscalYear, month - 1, 1);
     const endOfMonth = new Date(fiscalYear, month, 0, 23, 59, 59);

@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
-import { User } from '@prisma/client';
-
+import type { McpActor } from '../mcp-actor';
 import { TaxService } from '../../tax/tax.service';
 
 @Injectable()
 export class FiscalTools {
   constructor(private readonly taxService: TaxService) {}
 
-  async getFiscalSummary(adminUser: User, args: { fiscal_year: number }) {
+  async getFiscalSummary(adminUser: McpActor, args: { fiscal_year: number }) {
     const summary = await this.taxService.getFiscalSummary(
       adminUser.id,
       args.fiscal_year,
@@ -24,7 +23,7 @@ export class FiscalTools {
     };
   }
 
-  async getMonthlyTaxChecklist(adminUser: User, args: { period: string }) {
+  async getMonthlyTaxChecklist(adminUser: McpActor, args: { period: string }) {
     const checklist = await this.taxService.getMonthlyChecklist(
       adminUser.id,
       args.period,
@@ -41,7 +40,7 @@ export class FiscalTools {
   }
 
   async simulateTaxScenario(
-    adminUser: User,
+    adminUser: McpActor,
     args: {
       fiscal_year: number;
       additional_income_4th: number;

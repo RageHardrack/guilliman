@@ -62,6 +62,11 @@ export class Category {
   }
 
   toJSON(): CategoryProps {
-    return { ...this.props, budgetGroup: this.budgetGroup };
+    return {
+      ...this.props,
+      taxCategory: this.taxCategory,
+      taxDeductionType: this.taxDeductionType,
+      budgetGroup: this.budgetGroup,
+    };
   }
 }

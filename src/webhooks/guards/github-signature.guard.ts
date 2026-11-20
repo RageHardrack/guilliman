@@ -9,6 +9,12 @@ import {
 
 import * as crypto from 'crypto';
 
+interface WebhookRequest {
+  headers?: Record<string, string | string[] | undefined>;
+  body?: unknown;
+  rawBody?: Buffer | string;
+}
+
 @Injectable()
 export class GithubSignatureGuard implements CanActivate {
   private readonly logger = new Logger(GithubSignatureGuard.name);
@@ -16,29 +22,26 @@ export class GithubSignatureGuard implements CanActivate {
   constructor(private readonly configService: ConfigService) {}
 
   public canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<WebhookRequest>();
     const secret = this.configService.get<string>('GITHUB_WEBHOOK_SECRET');
-    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
 
     if (!secret) {
-      if (nodeEnv === 'production') {
-        this.logger.error(
-          'GITHUB_WEBHOOK_SECRET is not configured in production environment.',
+      if (this.isUnsignedAllowed()) {
+        this.logger.warn(
+          'GITHUB_WEBHOOK_SECRET is not configured. GITHUB_WEBHOOK_ALLOW_UNSIGNED=true: accepting the webhook request without verification.',
         );
-        throw new UnauthorizedException(
-          'GITHUB_WEBHOOK_SECRET is not configured',
-        );
+        return true;
       }
 
-      this.logger.warn(
-        'GITHUB_WEBHOOK_SECRET is not configured. Allowing webhook request without verification in development/test environment.',
+      this.logger.error(
+        'GITHUB_WEBHOOK_SECRET is not configured. Rejecting the webhook request; set the secret, or GITHUB_WEBHOOK_ALLOW_UNSIGNED=true for local development.',
       );
-      return true;
+      throw new UnauthorizedException(
+        'GITHUB_WEBHOOK_SECRET is not configured',
+      );
     }
 
-    const signatureHeader =
-      (request.headers?.['x-hub-signature-256'] as string) ||
-      (request.headers?.['X-Hub-Signature-256'] as string);
+    const signatureHeader = this.readSignatureHeader(request);
 
     if (!signatureHeader || !signatureHeader.startsWith('sha256=')) {
       this.logger.warn(
@@ -72,7 +75,26 @@ export class GithubSignatureGuard implements CanActivate {
     return true;
   }
 
-  private extractPayloadBuffer(request: any): Buffer {
+  /**
+   * Skipping verification needs an explicit opt-in and is never honored in
+   * production, so a missing secret fails closed by default.
+   */
+  private isUnsignedAllowed(): boolean {
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    const optIn = this.configService.get<string>(
+      'GITHUB_WEBHOOK_ALLOW_UNSIGNED',
+    );
+    return optIn === 'true' && nodeEnv !== 'production';
+  }
+
+  private readSignatureHeader(request: WebhookRequest): string | undefined {
+    const value =
+      request.headers?.['x-hub-signature-256'] ||
+      request.headers?.['X-Hub-Signature-256'];
+    return Array.isArray(value) ? value[0] : value;
+  }
+
+  private extractPayloadBuffer(request: WebhookRequest): Buffer {
     if (request.rawBody) {
       if (Buffer.isBuffer(request.rawBody)) {
         return request.rawBody;

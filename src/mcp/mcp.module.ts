@@ -11,7 +11,11 @@ import { AccountsModule } from '../accounts/accounts.module';
 import { CategoriesModule } from '../categories/categories.module';
 import { McpSseController } from './controllers/mcp-sse.controller';
 import { TransactionsModule } from '../transactions/transactions.module';
+import { McpTokenService } from './tokens/application/mcp-token.service';
 import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
+import { MCP_TOKEN_STORE_PORT } from './tokens/application/ports/mcp-token.repository.port';
+import { PrismaMcpTokenStore } from './tokens/infrastructure/adapters/prisma-mcp-token.store';
+import { McpTokensController } from './tokens/infrastructure/controllers/mcp-tokens.controller';
 
 @Module({
   imports: [
@@ -23,8 +27,18 @@ import { PrismaModule } from '../infrastructure/database/prisma/prisma.module';
     BudgetsModule,
     CategoriesModule,
   ],
-  controllers: [McpSseController],
-  providers: [McpAuthService, FiscalTools, FinanceTools, McpServerService],
-  exports: [McpServerService, McpAuthService],
+  controllers: [McpSseController, McpTokensController],
+  providers: [
+    McpAuthService,
+    FiscalTools,
+    FinanceTools,
+    McpServerService,
+    McpTokenService,
+    {
+      provide: MCP_TOKEN_STORE_PORT,
+      useClass: PrismaMcpTokenStore,
+    },
+  ],
+  exports: [McpServerService, McpAuthService, McpTokenService],
 })
 export class McpModule {}

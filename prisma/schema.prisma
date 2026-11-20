@@ -106,6 +106,7 @@ model User {
   savingsGoals      SavingsGoal[]
   loans             Loan[]
   transactionTemplates TransactionTemplate[]
+  mcpTokens              McpToken[]
 
   @@map("users")
 }
@@ -260,6 +261,26 @@ model TransactionTemplate {
 
   @@index([userId])
   @@map("transaction_templates")
+}
+
+/**
+ * A revocable, long-lived MCP access token (S2, S3). Only the sha256 hex
+ * digest of the issued plaintext is stored; the plaintext is returned once at
+ * creation. Owning user cascade-deletes the token.
+ */
+model McpToken {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mcp_tokens")
 }
 
 model Loan {

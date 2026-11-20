@@ -4,7 +4,7 @@
   <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
 </a>
 
-**Guilliman** is the central backend API and **Model Context Protocol (MCP)** server of the Lascar ecosystem. It serves REST for content management (Notion), user authentication, personal finance (accounts, transactions, budgets, subscriptions, loans), SUNAT tax settlement, and the isolated **Leon** wargaming bounded context (users, army rosters, and the 11th edition catalog). It also connects directly with AI agents (**Gemini Spark**) over `stdio` and `SSE`, and publishes deployment and release notifications to Discord. Everything is structured under **Hexagonal (Ports & Adapters) architecture**.
+**Guilliman** is the central backend API and **Model Context Protocol (MCP)** server of the Lascar ecosystem. It serves REST for content management (Notion), user authentication, personal finance (accounts, transactions, budgets, subscriptions, loans), SUNAT tax settlement, and the isolated **Leon** wargaming bounded context (users, army rosters, and the 11th edition catalog). It also serves AI agents over the Model Context Protocol — remotely via Streamable HTTP with revocable MCP tokens, locally via stdio — and publishes deployment and release notifications to Discord. Everything is structured under **Hexagonal (Ports & Adapters) architecture**.
 
 ---
 
@@ -22,9 +22,14 @@
 
 ---
 
-## 🤖 Tique MCP Server (Gemini Spark)
+## 🤖 Tique MCP Server
 
-The Guilliman backend ships a native MCP server that exposes 7 Tique financial and tax tools to AI agents:
+The Guilliman backend ships a native MCP server that exposes the Tique financial and tax tools to AI agents over two transports:
+
+| Transport | How it is reached | Tools | Acting user |
+| --- | --- | --- | --- |
+| **Streamable HTTP** (remote) | `POST /api/v1/mcp` with `Authorization: Bearer <MCP token>` | The 5 read-only tools | The owner of the MCP token used in the request |
+| **stdio** (local) | `bun run mcp:start` | All 7 tools | `MCP_USER_ID`, else `MCP_USER_EMAIL`, else the first active `ADMIN` |
 
 ### Exposed Tools
 
@@ -33,15 +38,68 @@ The Guilliman backend ships a native MCP server that exposes 7 Tique financial a
 3. `tique_simulate_tax_scenario`: Simulated tax impact of changes in income and deductible expenses within the 3 UIT cap.
 4. `tique_get_net_worth_and_liquidity`: Multi-currency consolidation (USD, PEN, VES) of assets, liabilities, and cards.
 5. `tique_get_budget_audit`: 50/30/20 budget audit and detection of small recurring expenses.
-6. `tique_create_transaction`: Transaction entry with 3 UIT fiscal traceability.
-7. `tique_record_debt_payment`: Payment against loans or cards with transactional consistency.
+6. `tique_create_transaction` (stdio only): Transaction entry with 3 UIT fiscal traceability.
+7. `tique_record_debt_payment` (stdio only): Payment against loans or cards with transactional consistency.
 
-### Security and Access Control (ADMIN only)
+Remote access is **read-only**: the two write tools never appear in `tools/list` over HTTP, and calling them through that route changes nothing.
 
-- The MCP server requires the resolved user to have **`role === 'ADMIN'`** and **`isActive === true`**.
-- The user can be specified explicitly with `MCP_USER_ID` or `MCP_USER_EMAIL` in the environment; otherwise it resolves to the first active administrator.
+### Security and Access Control
 
-### Configuration for Gemini Spark (Local on macOS via Stdio)
+- Every MCP request is served by a fresh, stateless server bound to one user: on HTTP that user is the owner of the MCP token, never an environment variable.
+- The token owner must be an **active `ADMIN`**. A revoked, unknown, or malformed token, or an owner that is no longer an active `ADMIN`, answers `401` and changes nothing.
+- An MCP token is not a session JWT and a session JWT is not an MCP token: neither authenticates the other's routes.
+
+### Managing MCP Tokens
+
+The three routes below require the session JWT of an `ADMIN` (`Authorization: Bearer <ADMIN_JWT>`); tokens created this way always belong to the authenticated user. The plaintext token is returned **once**, at creation; the database stores only its SHA-256 hash. Tokens look like `gmcp_<43 random base64url characters>`.
+
+| Method | Route | Result |
+| --- | --- | --- |
+| `POST` | `/api/v1/mcp/tokens` | Creates a token from the body `{"name": "<label>"}` (required, up to 60 characters) and returns `id`, `name`, `createdAt`, and the plaintext `token`. |
+| `GET` | `/api/v1/mcp/tokens` | Lists your own tokens (`id`, `name`, `createdAt`, `lastUsedAt`, `revokedAt`) — never the value or the hash. |
+| `DELETE` | `/api/v1/mcp/tokens/:id` | Revokes one of your own tokens; a foreign or missing id answers `404` and changes nothing. |
+
+```bash
+# Create a token — copy the returned "token" now, it is shown only once
+curl -X POST https://api.your-domain.pe/api/v1/mcp/tokens \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Hermes laptop"}'
+
+# List your tokens
+curl https://api.your-domain.pe/api/v1/mcp/tokens \
+  -H "Authorization: Bearer <ADMIN_JWT>"
+
+# Revoke one by its id
+curl -X DELETE https://api.your-domain.pe/api/v1/mcp/tokens/<TOKEN_ID> \
+  -H "Authorization: Bearer <ADMIN_JWT>"
+```
+
+The MCP route itself answers `405` (with `Allow: POST`) to `GET` and `DELETE`, because a stateless server has no session to open or close.
+
+### Connecting Hermes Agent
+
+Hermes connects over Streamable HTTP. Add the server to `~/.hermes/config.yaml`:
+
+```yaml
+mcp_servers:
+  guilliman:
+    url: "https://<API_DOMINIO>/api/v1/mcp"
+    headers:
+      Authorization: "Bearer ${GUILLIMAN_MCP_TOKEN}"
+```
+
+and keep the token value in `~/.hermes/.env` so it never lands in the config file:
+
+```env
+GUILLIMAN_MCP_TOKEN=<the token returned once at creation>
+```
+
+Hermes has no hot reload: restart it after changing either file. Its tools then appear as `mcp_guilliman_<tool>`, for example `mcp_guilliman_tique_get_fiscal_summary`.
+
+### Local stdio (unchanged)
+
+`bun run mcp:start` serves all 7 tools, writes included, over stdio. The acting user resolves from `MCP_USER_ID`, then `MCP_USER_EMAIL`, then the first active `ADMIN`, and must be an active `ADMIN`. A local MCP client starts it directly:
 
 ```json
 {
@@ -54,27 +112,6 @@ The Guilliman backend ships a native MCP server that exposes 7 Tique financial a
         "NODE_ENV": "development",
         "DATABASE_URL": "postgresql://guilliman_user:guilliman_secret@localhost:5434/guilliman_db?schema=public",
         "MCP_USER_EMAIL": "daniel@lascar.pe"
-      }
-    }
-  }
-}
-```
-
-### Configuration for Gemini Spark (Remote in Production via HTTP / SSE)
-
-Once Guilliman is deployed on the VPS:
-
-- SSE endpoint: `GET /api/v1/mcp/sse`
-- Messages endpoint: `POST /api/v1/mcp/messages?sessionId={id}`
-- Security: requires the `Authorization: Bearer <TOKEN_ADMIN_JWT>` header
-
-```json
-{
-  "mcpServers": {
-    "guilliman-remote": {
-      "serverUrl": "https://api.your-domain.pe/api/v1/mcp/sse",
-      "headers": {
-        "Authorization": "Bearer <TOKEN_ADMIN_JWT>"
       }
     }
   }
@@ -159,7 +196,7 @@ src/
 ├── transaction-templates/ # Expense/income/transfer templates for fast entry
 ├── exchange-rates/     # Official SUNAT (USD→PEN) and BCV (USD→VES) rates
 ├── tax/                # SUNAT tax engine (4th/5th category, UIT 2026, 3 UIT)
-├── mcp/                # Model Context Protocol server with ADMIN auth guard
+├── mcp/                # MCP server: Streamable HTTP (read-only, MCP tokens) + stdio
 ├── leon/               # Isolated Leon bounded context (auth, admin, rosters, catalog)
 ├── notion/             # Notion integration (CMS) and Languages resolution (i18n)
 ├── discord/            # Discord bot (Gateway client, embed builders, dispatching)
@@ -289,9 +326,9 @@ bun run mcp:start
 ## 🧪 Tests and Build
 
 ```bash
-# Run the unit test suite
-bun test src/mcp/
-bun test src/tax/
+# Run the unit test suite (Vitest)
+bun run test src/mcp/
+bun run test src/tax/
 
 # Compile for production
 bun run build

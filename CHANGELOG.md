@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
-- **mcp**: revocable MCP access tokens (`gmcp_` prefix, high entropy, shown once at creation; only their SHA-256 hash is stored). An authenticated `ADMIN` manages them with `POST /api/v1/mcp/tokens`, `GET /api/v1/mcp/tokens`, and `DELETE /api/v1/mcp/tokens/:id`; the list never exposes the value or the hash, and revoking a foreign or missing token answers `404` and changes nothing.
+- **mcp**: revocable MCP access tokens (`gmcp_` prefix, high entropy, shown once at creation; only their SHA-256 hash is stored). An authenticated `ADMIN` manages them with `POST /api/v1/mcp/tokens`, `GET /api/v1/mcp/tokens`, and `DELETE /api/v1/mcp/tokens/:id`; the list never exposes the value or the hash, and revoking a foreign or missing token answers `404` and changes nothing. The new `mcp_tokens` table is created on deploy by `prisma db push` in `start:prod`; there are no migrations to run.
 - **mcp**: stateless Streamable HTTP endpoint `POST /api/v1/mcp`, authenticated only with `Authorization: Bearer <MCP token>`. Each request gets a fresh server bound to the token's owner; `GET` and `DELETE` answer `405` with `Allow: POST`.
 
 ### Fixed

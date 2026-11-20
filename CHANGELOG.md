@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- **mcp**: revocable MCP access tokens (`gmcp_` prefix, high entropy, shown once at creation; only their SHA-256 hash is stored). An authenticated `ADMIN` manages them with `POST /api/v1/mcp/tokens`, `GET /api/v1/mcp/tokens`, and `DELETE /api/v1/mcp/tokens/:id`; the list never exposes the value or the hash, and revoking a foreign or missing token answers `404` and changes nothing.
+- **mcp**: stateless Streamable HTTP endpoint `POST /api/v1/mcp`, authenticated only with `Authorization: Bearer <MCP token>`. Each request gets a fresh server bound to the token's owner; `GET` and `DELETE` answer `405` with `Allow: POST`.
+
 ### Fixed
 
 - **webhooks**: the GitHub signature is verified over the exact bytes GitHub sent. The JSON body parser now keeps the raw body, so a payload whose bytes differ from its re-serialized JSON (for example `1.0` or `<` escapes) is no longer rejected with 401.
@@ -16,6 +21,12 @@ All notable changes to this project are documented in this file. The format foll
 - **ci**: unit tests run with `test:cov`, so a pull request that drops coverage below the thresholds in `vitest.config.ts` (80/70/80/80) now fails CI.
 - **tests**: branch coverage rises from 66.37% to 71.4% with behavior tests for the GitHub webhook signature guard, the SUNAT tax service, and the transaction and category entities.
 - **tests**: the tax service tests pin the Prisma query arguments (user, tax category, date windows, order) and the exact tax profile returned after an update, so a query that loses its `userId` filter or a response that leaks user fields fails the suite.
+
+- **mcp**: remote MCP access is now read-only and acts as the token's owner. The HTTP route exposes only `tique_get_fiscal_summary`, `tique_get_monthly_tax_checklist`, `tique_simulate_tax_scenario`, `tique_get_net_worth_and_liquidity`, and `tique_get_budget_audit`; the write tools are stdio-only, and the MCP user never comes from `MCP_USER_ID`, `MCP_USER_EMAIL`, or the first active `ADMIN`. A revoked, malformed, or unknown token, or an owner that is no longer an active `ADMIN`, answers `401`.
+
+### Removed
+
+- **mcp** (breaking): the SSE transport is gone — `GET /api/v1/mcp/sse` and `POST /api/v1/mcp/messages` are removed, replaced by the Streamable HTTP route `POST /api/v1/mcp` with an MCP access token. Clients still pointing at the SSE endpoints must be reconfigured.
 
 ## [0.5.2] - 2026-11-13
 

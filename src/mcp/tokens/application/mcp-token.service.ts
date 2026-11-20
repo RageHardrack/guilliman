@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -34,6 +35,8 @@ export interface McpVerifiedAccount {
  */
 @Injectable()
 export class McpTokenService {
+  private readonly logger = new Logger(McpTokenService.name);
+
   constructor(
     @Inject(MCP_TOKEN_STORE_PORT)
     private readonly store: McpTokenStorePort,
@@ -103,7 +106,16 @@ export class McpTokenService {
       return null;
     }
 
-    await this.store.markUsed(token.id as string);
+    // Last use is bookkeeping: a failed write must not reject a valid token.
+    try {
+      await this.store.markUsed(token.id as string);
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Could not record the last use of MCP token ${token.id as string}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
 
     return { id: account.id, email: account.email, role: account.role };
   }

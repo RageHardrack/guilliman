@@ -162,6 +162,20 @@ describe('McpTokenService (S2, S3)', () => {
       expect(store.markUsed).toHaveBeenCalledWith('tok-1');
     });
 
+    it('still accepts a valid token when recording its use fails', async () => {
+      store.findTokenByHash.mockResolvedValue({
+        token: tokenOf(),
+        account,
+      });
+      store.markUsed.mockRejectedValue(new Error('database unavailable'));
+
+      await expect(service.verify('gmcp_' + 'A'.repeat(43))).resolves.toEqual({
+        id: 'user-1',
+        email: 'daniel@lascar.pe',
+        role: Role.ADMIN,
+      });
+    });
+
     it('rejects a revoked token and records no use', async () => {
       store.findTokenByHash.mockResolvedValue({
         token: tokenOf({ revokedAt: new Date('2026-11-05T00:00:00.000Z') }),

@@ -50,6 +50,17 @@ describe('McpTokensController (S3)', () => {
     ).not.toContain('body-user');
   });
 
+  it('passes a missing name on a null body to the service validation instead of throwing', async () => {
+    await expect(
+      controller.create(
+        { userId: 'jwt-user' },
+        null as unknown as { name: unknown },
+      ),
+    ).resolves.toEqual(created);
+
+    expect(service.create).toHaveBeenCalledWith('jwt-user', undefined);
+  });
+
   it('lists the JWT user tokens', async () => {
     await controller.list({ userId: 'jwt-user' });
 

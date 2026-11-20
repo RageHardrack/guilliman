@@ -56,7 +56,8 @@ export class McpTokensController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateMcpTokenDto,
   ) {
-    return this.tokens.create(user.userId, dto.name);
+    // A null JSON body reaches here as null; the entity rejects the name.
+    return this.tokens.create(user.userId, dto?.name);
   }
 
   @Get()

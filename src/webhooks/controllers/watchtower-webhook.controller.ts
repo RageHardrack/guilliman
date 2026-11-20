@@ -11,7 +11,7 @@ import {
 
 import { WatchtowerEmbedBuilder } from '../../discord/builders/watchtower-embed.builder';
 import { DiscordNotificationService } from '../../discord/services/discord-notification.service';
-import {
+import type {
   WatchtowerProcessedResponse,
   WatchtowerWebhookPayload,
 } from '../types/watchtower-webhook.types';

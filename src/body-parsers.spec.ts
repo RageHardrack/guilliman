@@ -1,16 +1,30 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
 import * as crypto from 'crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { registerBodyParsers } from './body-parsers';
 import { GithubSignatureGuard } from './webhooks/guards/github-signature.guard';
+import {
+  mcpHttpRouteUrl,
+  allowBodilessMethodsOnMcpRoute,
+} from './mcp/mcp-bodiless-methods.hook';
+
+/** The prefix main.ts serves the API under. */
+const GLOBAL_PREFIX = 'api/v1';
 
 const secret = 'body-parser-test-secret';
 
@@ -28,6 +42,14 @@ class HookController {
   echo(@Body() body: unknown): { received: unknown } {
     return { received: body };
   }
+
+  // A bodiless method on a route that is not the MCP endpoint: its answer to an
+  // empty JSON body must not move when /api/v1/mcp is special-cased.
+  @Delete('echo')
+  @HttpCode(200)
+  remove(@Body() body: unknown): { received: unknown } {
+    return { received: body };
+  }
 }
 
 const sign = (payload: string): string =>
@@ -36,7 +58,9 @@ const sign = (payload: string): string =>
 describe('registerBodyParsers', () => {
   let app: NestFastifyApplication | undefined;
 
-  const bootApp = async (): Promise<NestFastifyApplication> => {
+  const bootApp = async (
+    productionParsers = true,
+  ): Promise<NestFastifyApplication> => {
     const config: Pick<ConfigService, 'get'> = {
       get: (key: string) =>
         key === 'GITHUB_WEBHOOK_SECRET' ? secret : 'production',
@@ -49,7 +73,12 @@ describe('registerBodyParsers', () => {
       ],
     }).compile();
     const adapter = new FastifyAdapter();
-    registerBodyParsers(adapter);
+    if (productionParsers) {
+      registerBodyParsers(adapter);
+    }
+    // The MCP narrow fix is installed exactly as main.ts installs it, so these
+    // routes are proven against the wiring the process actually runs.
+    allowBodilessMethodsOnMcpRoute(adapter, mcpHttpRouteUrl(GLOBAL_PREFIX));
     const instance = moduleRef.createNestApplication<NestFastifyApplication>(
       adapter,
       { logger: false },
@@ -116,6 +145,36 @@ describe('registerBodyParsers', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ received: {} });
+  });
+
+  it('leaves an empty JSON body on a DELETE of another route as an empty object', async () => {
+    const instance = await bootApp();
+
+    const response = await instance.inject({
+      method: 'DELETE',
+      url: '/hook/echo',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ received: {} });
+  });
+
+  it('keeps the Fastify 400 of another route when its empty JSON body is refused', async () => {
+    // Without the application parser the default one answers an empty JSON body
+    // with 400. The MCP fix must not move that: the hook is keyed on the MCP
+    // URL, so this route still gets the status it had before.
+    const instance = await bootApp(false);
+
+    const response = await instance.inject({
+      method: 'DELETE',
+      url: '/hook/echo',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(400);
   });
 
   it('keeps an invalid JSON body as text', async () => {

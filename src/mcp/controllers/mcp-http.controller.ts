@@ -19,6 +19,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 import { McpServerFactory } from '../mcp-server.factory';
 import { McpTokenAuthGuard } from '../guards/mcp-token-auth.guard';
+import { MCP_HTTP_CONTROLLER_PATH } from '../mcp-bodiless-methods.hook';
 import type { McpVerifiedAccount } from '../tokens/application/mcp-token.service';
 
 /** Fastify request once `McpTokenAuthGuard` has run. */
@@ -51,7 +52,7 @@ const METHOD_NOT_ALLOWED: JsonRpcErrorBody = {
 @ApiTags('MCP')
 @ApiBearerAuth()
 @UseGuards(McpTokenAuthGuard)
-@Controller('mcp')
+@Controller(MCP_HTTP_CONTROLLER_PATH)
 export class McpHttpController {
   private readonly logger = new Logger(McpHttpController.name);
 

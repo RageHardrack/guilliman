@@ -87,16 +87,26 @@ export class PrismaMcpTokenStore implements McpTokenStorePort {
 
   /**
    * Ownership-scoped update: a foreign or missing id changes zero rows, so the
-   * caller sees 404 and no write happens (S3). Revoking twice is idempotent
-   * for the owner.
+   * caller sees 404 and no write happens (S3). `revokedAt: null` in the filter
+   * also freezes the first revocation: a second revoke of the caller's own
+   * token matches no row, keeps the original `revokedAt`, and is still reported
+   * as success because the row belongs to the caller (S13).
    */
   async revoke(id: string, userId: string): Promise<boolean> {
     const result = await this.prisma.mcpToken.updateMany({
-      where: { id, userId },
+      where: { id, userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
 
-    return result.count > 0;
+    if (result.count > 0) {
+      return true;
+    }
+
+    // Nothing was written. Only the owner can tell "already revoked" (200) from
+    // "not yours" (404), and reading answers it without writing anything.
+    const owned = await this.prisma.mcpToken.count({ where: { id, userId } });
+
+    return owned > 0;
   }
 
   private toDomain(row: McpTokenRow): McpToken {
